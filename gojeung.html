@@ -567,10 +567,8 @@
     <div class="sub">조세특례제한법 제29조의7 | 고용을 증대시킨 기업에 대한 세액공제</div>
   </div>
   <div class="nav-btns">
-    <button class="nav-link active" onclick="switchMainTab('tab-spec')">명세서</button>
-    <button class="nav-link" onclick="switchMainTab('tab-calc')">계산</button>
     <a href="index.html" class="switch-btn">통합고용 →</a>
-    <button class="theme-btn" onclick="toggleTheme()">테마</button>
+    <button class="theme-btn" onclick="toggleTheme()">🎨</button>
   </div>
 </div>
 
@@ -831,21 +829,15 @@
 // MAIN TAB SWITCHING
 // ═══════════════════════════════════════════
 function switchMainTab(tabId) {
-  // Hide all main tabs
   document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.main-tab-btn').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-btns button.nav-link').forEach(el => el.classList.remove('active'));
 
-  // Show selected tab
   document.getElementById(tabId).classList.add('active');
 
   if (tabId === 'tab-spec') {
     document.getElementById('mtab-btn-spec').classList.add('active');
-    document.querySelectorAll('.nav-btns button.nav-link')[0].classList.add('active');
   } else {
     document.getElementById('mtab-btn-calc').classList.add('active');
-    document.querySelectorAll('.nav-btns button.nav-link')[1].classList.add('active');
-    // Auto-populate from specData if available
     if (window.specData) {
       calcAutoPopulateFromSpec();
     }

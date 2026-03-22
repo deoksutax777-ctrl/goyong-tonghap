@@ -569,15 +569,13 @@
       <div class="sub">조세특례제한법 제29조의8 | 명세서 + 세액공제 계산기</div>
     </div>
     <div class="nav-btns">
-      <button class="nav-link active" onclick="switchMainTab('tab-spec', this)">명세서</button>
-      <button class="nav-link" onclick="switchMainTab('tab-calc', this)">계산</button>
       <a href="gojeung.html" class="switch-btn">고용증대 →</a>
-      <button class="theme-btn" onclick="toggleTheme()">테마</button>
+      <button class="theme-btn" onclick="toggleTheme()">🎨</button>
     </div>
   </div>
   <div class="main-tabs">
-    <button class="main-tab-btn active" onclick="switchMainTab('tab-spec', null, this)">명세서 (상시근로자수 산정)</button>
-    <button class="main-tab-btn" onclick="switchMainTab('tab-calc', null, this)">세액공제 계산</button>
+    <button class="main-tab-btn active" onclick="switchMainTab('tab-spec')">명세서 (상시근로자수 산정)</button>
+    <button class="main-tab-btn" onclick="switchMainTab('tab-calc')">세액공제 계산</button>
   </div>
 </div>
 
@@ -838,22 +836,16 @@
 // Shared data object for 명세서 → 계산기 data transfer
 window.specData = null;
 
-function switchMainTab(tabId, navBtn, tabBtn) {
-  // Hide all main tab contents
+function switchMainTab(tabId) {
   document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
 
-  // Update nav buttons
-  document.querySelectorAll('.nav-btns .nav-link').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.main-tab-btn').forEach(el => el.classList.remove('active'));
 
   if (tabId === 'tab-spec') {
-    document.querySelectorAll('.nav-btns .nav-link')[0].classList.add('active');
     document.querySelectorAll('.main-tab-btn')[0].classList.add('active');
   } else {
-    document.querySelectorAll('.nav-btns .nav-link')[1].classList.add('active');
     document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
-    // Auto-populate from specData if available
     if (window.specData) {
       calc_loadFromSpec(true);
     }
