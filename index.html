@@ -1,0 +1,3491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통합고용세액공제 명세서 + 계산기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f8f9fb;
+    --border: #d0d5dd;
+    --border-strong: #8a9bb0;
+    --text: #1a2332;
+    --text-muted: #5a6a7e;
+    --accent: #1a4fa8;
+    --accent-light: #e8eef8;
+    --accent2: #0e7c61;
+    --accent2-light: #e6f4f0;
+    --warn: #c0392b;
+    --warn-light: #fdf0ee;
+    --orange: #e67e22;
+    --orange-light: #fef6e8;
+    --header-bg: #e4eaf4;
+    --row-hover: #f2f5fb;
+    --excluded-bg: #fdf5f5;
+    --youth-bg: #f0f8f4;
+    --font: 'Noto Sans KR', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── LAYOUT ─────────────────────────────── */
+  .app-header {
+    background: var(--accent);
+    color: #fff;
+    padding: 12px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(26,79,168,.25);
+  }
+  .app-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .app-header h1 { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+  .app-header .sub { font-size: 11px; opacity: .75; margin-top: 2px; }
+  .nav-btns { display: flex; gap: 8px; align-items: center; }
+  .nav-btns a, .nav-btns button.nav-link {
+    padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    text-decoration: none; transition: all .15s; cursor: pointer;
+    font-family: var(--font); border: 2px solid rgba(255,255,255,.4);
+    background: transparent; color: rgba(255,255,255,.85);
+  }
+  .nav-btns a:hover, .nav-btns button.nav-link:hover { background: rgba(255,255,255,.15); }
+  .nav-btns .active { background: #fff !important; color: var(--accent) !important; border-color: #fff !important; }
+
+  /* ── MAIN TABS ────────────────────────── */
+  .main-tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .main-tab-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    color: rgba(255,255,255,.7);
+    background: rgba(255,255,255,.1);
+  }
+  .main-tab-btn:hover:not(.active) { background: rgba(255,255,255,.2); color: #fff; }
+  .main-tab-btn.active {
+    background: var(--bg);
+    color: var(--accent);
+  }
+
+  .main-tab-content { display: none; }
+  .main-tab-content.active { display: block; }
+
+  /* ── SHARED ─────────────────────────────── */
+  .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .panel-header {
+    background: var(--header-bg);
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-body { padding: 16px; }
+
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+  .field-group input, .field-group select {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color .15s;
+  }
+  .field-group input:focus, .field-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(26,79,168,.1);
+  }
+
+  .btn-calc {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    white-space: nowrap;
+  }
+  .btn-calc:hover { background: #1840a0; }
+  .btn-calc:active { transform: scale(.98); }
+  .btn-calc:disabled { background: #aaa; cursor: not-allowed; }
+
+  .btn-print {
+    background: var(--surface);
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    padding: 7px 18px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-print:hover { background: var(--accent-light); }
+
+  .btn-download {
+    background: #1a7a4a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-download:hover:not(:disabled) { background: #155e38; }
+  .btn-download:active:not(:disabled) { transform: scale(.98); }
+  .btn-download:disabled { background: #7aaa8e; cursor: not-allowed; opacity: .6; }
+  .btn-download .dl-icon { font-size: 14px; }
+
+  .alert { padding: 10px 14px; border-radius: 6px; font-size: 12px; margin: 8px 0; }
+  .alert-info { background: var(--accent-light); color: var(--accent); border: 1px solid #b0c4e8; }
+  .alert-warn { background: var(--warn-light); color: var(--warn); border: 1px solid #f0b0a8; }
+
+  /* ── SPEC TAB (명세서) STYLES ──────────── */
+  #tab-spec .container { max-width: 1600px; }
+
+  #tab-spec .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  #tab-spec .upload-card {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    background: var(--surface2);
+  }
+  #tab-spec .upload-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  #tab-spec .upload-card.has-file { border-color: var(--accent2); border-style: solid; background: var(--accent2-light); }
+  #tab-spec .upload-card.drag-over { border-color: var(--accent); background: var(--accent-light); transform: scale(1.01); }
+  #tab-spec .upload-card input[type=file] { display: none; }
+  #tab-spec .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  #tab-spec .upload-label { font-weight: 600; font-size: 13px; color: var(--text); }
+  #tab-spec .upload-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  #tab-spec .upload-filename {
+    margin-top: 8px; font-size: 12px; color: var(--accent2); font-weight: 500;
+    font-family: var(--mono); background: rgba(14,124,97,.08); padding: 3px 8px;
+    border-radius: 4px; display: inline-block;
+  }
+
+  #tab-spec .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; align-items: end; }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .summary-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 12px 16px;
+  }
+  .summary-card .sc-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .summary-card .sc-val { font-size: 22px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+  .summary-card .sc-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .summary-card.highlight { background: var(--accent-light); border-color: var(--accent); }
+  .summary-card.highlight .sc-val { color: var(--accent); }
+  .summary-card.green { background: var(--accent2-light); border-color: var(--accent2); }
+  .summary-card.green .sc-val { color: var(--accent2); }
+
+  /* Result table */
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    padding: 10px 16px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-title .badge {
+    font-size: 11px;
+    background: var(--accent);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .section-title .badge.green { background: var(--accent2); }
+
+  .table-wrap { overflow-x: auto; }
+  table.spec {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+    min-width: 1400px;
+  }
+  table.spec th {
+    background: #eef2fa;
+    padding: 6px 4px;
+    text-align: center;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    white-space: pre-line;
+    line-height: 1.4;
+    vertical-align: middle;
+  }
+  table.spec td {
+    padding: 5px 6px;
+    border: 1px solid var(--border);
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  table.spec tr:hover td { background: var(--row-hover); }
+  table.spec tr.excluded td { background: var(--excluded-bg); color: #999; }
+  table.spec tr.excluded td.name-col { color: var(--warn); }
+  table.spec tr.youth td { background: var(--youth-bg); }
+  table.spec tr.override-include td { background: #fff8e6; }
+  table.spec tr.override-include td.name-col { color: #b86a00; font-weight: 600; }
+  table.spec tr.override-exclude td { background: #f5f0ff; color: #888; }
+  table.spec tr.override-exclude td.name-col { color: #7040c0; font-weight: 600; }
+  .toggle-wrap { display:flex; align-items:center; justify-content:center; gap:4px; }
+  .toggle-btn {
+    display: inline-flex; align-items:center; gap:3px;
+    padding: 3px 8px; border-radius: 20px; border: 1.5px solid;
+    font-size: 10px; font-weight: 700; cursor: pointer;
+    font-family: var(--mono); transition: all .15s; white-space:nowrap;
+    user-select:none;
+  }
+  .toggle-btn.state-auto-y  { background:#e6f4f0; color:#0e7c61; border-color:#9dd3c2; }
+  .toggle-btn.state-auto-n  { background:#fdf5f5; color:#aaa;    border-color:#f0c0b8; }
+  .toggle-btn.state-force-y { background:#fff3cc; color:#b86a00; border-color:#f0c060; }
+  .toggle-btn.state-force-n { background:#f0e8ff; color:#7040c0; border-color:#c0a0f0; }
+  .toggle-btn .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .toggle-btn.state-auto-y  .dot { background:#0e7c61; }
+  .toggle-btn.state-auto-n  .dot { background:#ccc; }
+  .toggle-btn.state-force-y .dot { background:#f0a000; }
+  .toggle-btn.state-force-n .dot { background:#9060e0; }
+  table.spec td.name-col { text-align: left; font-weight: 500; padding-left: 8px; }
+  table.spec td.N { color: #aaa; }
+  table.spec td.Y { color: var(--accent2); font-weight: 600; }
+  table.spec td.months { font-family: var(--mono); font-size: 11px; }
+  table.spec td.reason { color: var(--warn); font-size: 11px; }
+
+  table.spec td.yn-toggle {
+    cursor: pointer;
+    user-select: none;
+    transition: all .12s;
+    position: relative;
+  }
+  table.spec td.yn-toggle:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px var(--accent);
+    z-index: 2;
+    border-radius: 3px;
+  }
+  table.spec td.yn-toggle.Y { color: var(--accent2); font-weight: 600; }
+  table.spec td.yn-toggle.N { color: #aaa; }
+
+  table.spec th.sub-youth { background: #e6f4f0; color: var(--accent2); font-size: 10px; }
+
+  /* 집계표 */
+  table.agg {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.agg th {
+    background: #eef2fa;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    text-align: center;
+    white-space: pre-line;
+    line-height: 1.4;
+  }
+  table.agg td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  table.agg tr:nth-child(odd) td { background: var(--surface2); }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; font-size: 11px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .dot-excluded { background: var(--excluded-bg); border: 1px solid #f0b0a8; }
+  .dot-youth { background: var(--youth-bg); border: 1px solid #9dd3c2; }
+  .dot-override-in  { background: #fff8e6; border: 1px solid #f0c060; }
+  .dot-override-ex  { background: #f5f0ff; border: 1px solid #c0a0f0; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .es-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state .es-text { font-size: 15px; font-weight: 500; }
+  .empty-state .es-sub { font-size: 12px; margin-top: 6px; }
+
+  /* 명세서 내부 탭 */
+  #tab-spec .tabs { display: flex; border-bottom: 1px solid var(--border); }
+  #tab-spec .tab-btn {
+    padding: 10px 20px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .15s;
+  }
+  #tab-spec .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+  #tab-spec .tab-btn:hover:not(.active) { color: var(--text); background: var(--surface2); }
+  #tab-spec .spec-tab-content { display: none; }
+  #tab-spec .spec-tab-content.active { display: block; }
+
+  /* ── CALC TAB (계산기) STYLES ──────────── */
+  #tab-calc .container { max-width: 1200px; }
+  #tab-calc .config-row { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+  #tab-calc input[type=number] { width: 90px; text-align: right; font-family: var(--mono); }
+
+  /* Input table */
+  #tab-calc .input-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  #tab-calc .input-table th {
+    padding: 8px 10px; border: 1px solid var(--border); font-weight: 600; text-align: center; white-space: nowrap;
+  }
+  #tab-calc .input-table th.y-hdr { background: var(--accent2-light); color: var(--accent2); }
+  #tab-calc .input-table th.n-hdr { background: #f0f2f8; color: var(--accent); }
+  #tab-calc .input-table td { padding: 6px 8px; border: 1px solid var(--border); text-align: center; }
+  #tab-calc .input-table td.lbl { font-family: var(--font); font-weight: 500; text-align: left; background: var(--surface2); white-space: nowrap; }
+  #tab-calc .input-table td input[type=number] { width: 80px; text-align: right; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-family: var(--mono); font-size: 12px; }
+
+  /* Timeline cards */
+  #tab-calc .tl-section { margin-bottom: 28px; }
+  #tab-calc .tl-title {
+    font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #tab-calc .tl-title-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 5px;
+    font-size: 12px; font-weight: 700; color: #fff; background: var(--accent);
+  }
+  #tab-calc .tl-row {
+    display: flex; align-items: stretch; overflow-x: auto; padding-bottom: 4px;
+  }
+  #tab-calc .tl-arrow {
+    display: flex; align-items: center; padding: 0 6px; color: #bbb; font-size: 22px; flex-shrink: 0;
+  }
+  #tab-calc .tl-card {
+    min-width: 155px; max-width: 190px; flex-shrink: 0;
+    background: #fff; border: 2px solid var(--border); border-radius: 12px;
+    padding: 14px 12px; text-align: center; transition: box-shadow .2s;
+  }
+  #tab-calc .tl-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  #tab-calc .tl-card.c-prev { border-color: #ccc; background: #f8f9fb; }
+  #tab-calc .tl-card.c-danggi { border-color: var(--accent); background: linear-gradient(135deg, #e8eef8, #f0f4fb); }
+  #tab-calc .tl-card.c-addtl { border-color: var(--accent2); background: linear-gradient(135deg, #e6f4f0, #f0faf6); }
+  #tab-calc .tl-card.c-chug { border-color: var(--orange); background: linear-gradient(135deg, var(--orange-light), #fff8f0); }
+  #tab-calc .tl-card.c-missing { border-style: dashed; border-color: #ccc; background: #fafafa; opacity: .55; }
+  #tab-calc .tl-card-year { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  #tab-calc .tl-card-role { margin-bottom: 8px; }
+  #tab-calc .tl-card-amount { font-size: 16px; font-weight: 700; font-family: var(--mono); }
+  #tab-calc .tl-card-amount.blue { color: var(--accent); }
+  #tab-calc .tl-card-amount.green { color: var(--accent2); }
+  #tab-calc .tl-card-detail { font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+  #tab-calc .tl-card-chug { font-size: 11px; color: var(--warn); font-weight: 600; margin-top: 4px; }
+  #tab-calc .tl-card-net { font-size: 12px; font-weight: 700; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .badge-prev { background: #e9ecef; color: #6c757d; }
+  .badge-danggi { background: var(--accent-light); color: var(--accent); }
+  .badge-addtl { background: var(--accent2-light); color: var(--accent2); }
+  .badge-ok { background: #d4edda; color: #155724; }
+  .badge-warn { background: #fff3cd; color: #856404; }
+  .badge-danger { background: #f8d7da; color: #721c24; }
+  .badge-na { background: #e9ecef; color: #999; }
+
+  /* Progress bar */
+  #tab-calc .tl-progress { margin-top: 10px; }
+  #tab-calc .progress-bar { height: 26px; background: #e9ecef; border-radius: 13px; overflow: hidden; position: relative; }
+  #tab-calc .progress-fill {
+    height: 100%; border-radius: 13px; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 12px; font-family: var(--mono);
+    transition: width .3s ease; min-width: fit-content; padding: 0 14px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  #tab-calc .progress-fill.has-chug { background: linear-gradient(90deg, var(--orange), #f39c12); }
+  #tab-calc .progress-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-align: right; }
+
+  /* Grand summary matrix */
+  #tab-calc .matrix { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #tab-calc .matrix th {
+    background: var(--accent); color: #fff; padding: 10px 12px;
+    border: 1px solid #1a4fa8; text-align: center; font-weight: 600;
+  }
+  #tab-calc .matrix td {
+    padding: 10px 12px; border: 1px solid var(--border);
+    text-align: center; font-family: var(--mono); font-size: 13px;
+  }
+  #tab-calc .matrix td.lbl {
+    font-family: var(--font); font-weight: 600; text-align: left; background: var(--surface2);
+  }
+  #tab-calc .matrix .cell-credit { color: var(--accent2); font-weight: 600; }
+  #tab-calc .matrix .cell-chug { color: var(--warn); font-size: 11px; }
+  #tab-calc .matrix tr.row-total td { background: var(--accent); color: #fff; font-weight: 700; border-color: #1a4fa8; }
+  #tab-calc .matrix tr.row-total td.lbl { background: var(--accent); color: #fff; }
+  #tab-calc .matrix td.col-total { background: var(--accent-light); font-weight: 700; color: var(--accent); }
+
+  /* Formula & verification */
+  #tab-calc .tl-formulas {
+    margin-top: 8px; padding: 10px 14px; font-size: 11px; color: #999; line-height: 1.8;
+    background: #fafafa; border-radius: 6px; border: 1px solid #eee;
+  }
+  #tab-calc .tl-formulas .f-title { color: #888; font-weight: 600; margin-bottom: 2px; }
+  #tab-calc .tl-formulas .f-verify {
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid #e5e5e5;
+  }
+  #tab-calc .tl-formulas code { font-family: var(--mono); background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+  .verify-pass { color: var(--accent2); font-weight: 700; }
+  .verify-fail { color: var(--warn); font-weight: 700; }
+
+  #tab-calc .highlight-box {
+    background: var(--accent); color: #fff; border-radius: 10px;
+    padding: 16px 24px; margin-top: 16px; text-align: center;
+  }
+  #tab-calc .highlight-box .big { font-size: 28px; font-weight: 700; font-family: var(--mono); }
+  #tab-calc .highlight-box .label { font-size: 12px; opacity: .8; margin-bottom: 4px; }
+
+  /* ── PRINT ───────────────────────────── */
+  @media print {
+    .app-header, .upload-section, .config-section, .no-print { display: none !important; }
+    .container { padding: 0; }
+    .panel { box-shadow: none; border: 1px solid #999; margin-bottom: 8px; }
+    table.spec { font-size: 9px; min-width: unset; }
+    table.spec th, table.spec td { padding: 3px 2px; }
+    body { background: #fff; }
+  }
+
+  @media (max-width: 768px) {
+    .container { padding: 12px; }
+    #tab-calc .tl-card { min-width: 130px; padding: 10px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- HEADER with TABS                              -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="app-header">
+  <div class="app-header-top">
+    <div>
+      <h1>통합고용세액공제 <span style="font-size:12px;font-weight:400;opacity:.7;letter-spacing:.5px;">by Deoksu Tax Firm</span></h1>
+      <div class="sub">조세특례제한법 제29조의8 | 명세서 + 세액공제 계산기</div>
+    </div>
+    <div class="nav-btns">
+      <button class="nav-link active" onclick="switchMainTab('tab-spec', this)">통합고용 명세서</button>
+      <button class="nav-link" onclick="switchMainTab('tab-calc', this)">통합고용 계산</button>
+      <a href="gojeung.html">고용증대</a>
+    </div>
+  </div>
+  <div class="main-tabs">
+    <button class="main-tab-btn active" onclick="switchMainTab('tab-spec', null, this)">명세서 (상시근로자수 산정)</button>
+    <button class="main-tab-btn" onclick="switchMainTab('tab-calc', null, this)">세액공제 계산</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 1: 명세서                                  -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="tab-spec" class="main-tab-content active">
+<div class="container">
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px;" class="no-print">
+    <button class="btn-print" onclick="window.print()">인쇄</button>
+    <button class="btn-download" id="btn-excel" onclick="spec_downloadExcel()" disabled>
+      <span class="dl-icon">⬇</span> 엑셀 다운로드
+    </button>
+  </div>
+
+  <!-- 파일 업로드 -->
+  <div class="panel upload-section no-print">
+    <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <span><span class="icon">&#128194;</span> 파일 업로드 (사원등록 또는 템플릿)</span>
+      <button onclick="downloadTemplate()" style="font-size:11px;padding:4px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-muted);">템플릿 다운로드</button>
+    </div>
+    <div class="panel-body">
+      <div class="upload-grid">
+        <div class="upload-card" id="drop-cur"
+          onclick="document.getElementById('file-cur').click()"
+          ondragover="handleDragOver(event,'drop-cur')"
+          ondragleave="handleDragLeave(event,'drop-cur')"
+          ondrop="handleDrop(event,'cur')">
+          <input type="file" id="file-cur" accept=".xlsx,.xls" onchange="handleFile(this,'cur')">
+          <div class="upload-icon">&#128202;</div>
+          <div class="upload-label">당기</div>
+          <div class="upload-sub">사원등록 또는 템플릿 (.xlsx)<br><span style="font-size:10px;margin-top:3px;display:block;opacity:.7;">파일을 여기에 드래그하거나 클릭하세요</span></div>
+          <div id="filename-cur" class="upload-filename" style="display:none"></div>
+        </div>
+        <div class="upload-card" id="drop-prev"
+          onclick="document.getElementById('file-prev').click()"
+          ondragover="handleDragOver(event,'drop-prev')"
+          ondragleave="handleDragLeave(event,'drop-prev')"
+          ondrop="handleDrop(event,'prev')">
+          <input type="file" id="file-prev" accept=".xlsx,.xls" onchange="handleFile(this,'prev')">
+          <div class="upload-icon">&#128202;</div>
+          <div class="upload-label">전기</div>
+          <div class="upload-sub">사원등록 또는 템플릿 (.xlsx)<br><span style="font-size:10px;margin-top:3px;display:block;opacity:.7;">파일을 여기에 드래그하거나 클릭하세요</span></div>
+          <div id="filename-prev" class="upload-filename" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 기본 설정 -->
+  <div class="panel config-section no-print">
+    <div class="panel-header"><span class="icon">&#9881;&#65039;</span> 기본 설정</div>
+    <div class="panel-body">
+      <div class="config-grid">
+        <div class="field-group">
+          <label>법인명</label>
+          <input type="text" id="company-name" value="" placeholder="법인명을 입력하세요">
+        </div>
+        <div class="field-group">
+          <label>사업자등록번호</label>
+          <input type="text" id="biz-no" value="" placeholder="000-00-00000">
+        </div>
+        <div class="field-group">
+          <label>법인 구분</label>
+          <select id="spec-corp-type">
+            <option value="중소">중소기업</option>
+            <option value="중견">중견기업</option>
+            <option value="대기업">대기업</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>당기 과세연도</label>
+          <input type="number" id="tax-year" value="2025" min="2000" max="2099">
+        </div>
+        <div class="field-group" style="align-self:end">
+          <button class="btn-calc" id="calc-btn" onclick="spec_calculate()">
+            &#9889; 명세서 생성
+          </button>
+        </div>
+      </div>
+
+      <!-- 수도권 부서 설정 -->
+      <div style="margin-top:14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+          수도권 근무지 부서 설정 <span style="font-weight:400;text-transform:none;letter-spacing:0;">(체크된 부서 = 수도권 Y / 파일 업로드 시 자동 감지)</span>
+        </div>
+        <div id="dept-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:12px;color:var(--text-muted);font-style:italic;">사원등록 파일을 업로드하면 자동으로 표시됩니다</span>
+        </div>
+      </div>
+
+      <!-- 임원 직급 설정 -->
+      <div style="margin-top:12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+          임원 직급 설정 <span style="font-weight:400;text-transform:none;letter-spacing:0;">(체크된 직급 = 상시근로자 제외 / 파일 업로드 시 자동 감지)</span>
+        </div>
+        <div id="exec-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:12px;color:var(--text-muted);font-style:italic;">사원등록 파일을 업로드하면 자동으로 표시됩니다</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과 영역 -->
+  <div id="result-area" style="display:none">
+
+    <!-- 요약 카드 -->
+    <div class="panel">
+      <div class="panel-header"><span class="icon">&#128200;</span> 상시근로자 수 집계</div>
+      <div class="panel-body">
+        <div id="agg-table-wrap"></div>
+      </div>
+    </div>
+
+    <!-- 탭 상세 명세 -->
+    <div class="panel">
+      <div class="tabs no-print">
+        <button class="tab-btn active" onclick="spec_switchTab('cur-tab',this)">해당 과세연도 명세</button>
+        <button class="tab-btn" onclick="spec_switchTab('prev-tab',this)">직전 과세연도 명세</button>
+      </div>
+      <div id="cur-tab" class="spec-tab-content active">
+        <div class="section-title">
+          <span>2. 해당과세연도 상시근로자별 명세</span>
+          <span id="cur-badge" class="badge"></span>
+        </div>
+        <div class="legend no-print">
+          <div class="legend-item"><div class="legend-dot dot-excluded"></div>자동 제외</div>
+          <div class="legend-item"><div class="legend-dot dot-youth"></div>청년등 해당자</div>
+          <div class="legend-item"><div class="legend-dot dot-override-in"></div>수동 포함 (오버라이드)</div>
+          <div class="legend-item"><div class="legend-dot dot-override-ex"></div>수동 제외 (오버라이드)</div>
+        </div>
+        <div class="table-wrap" id="cur-table-wrap"></div>
+      </div>
+      <div id="prev-tab" class="spec-tab-content">
+        <div class="section-title">
+          <span>3. 직전과세연도 상시근로자별 명세</span>
+          <span id="prev-badge" class="badge green"></span>
+        </div>
+        <div class="legend no-print">
+          <div class="legend-item"><div class="legend-dot dot-excluded"></div>자동 제외</div>
+          <div class="legend-item"><div class="legend-dot dot-youth"></div>청년등 해당자</div>
+          <div class="legend-item"><div class="legend-dot dot-override-in"></div>수동 포함 (오버라이드)</div>
+          <div class="legend-item"><div class="legend-dot dot-override-ex"></div>수동 제외 (오버라이드)</div>
+        </div>
+        <div class="table-wrap" id="prev-table-wrap"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 빈 상태 -->
+  <div id="empty-state" class="panel">
+    <div class="empty-state">
+      <div class="es-icon">&#128194;</div>
+      <div class="es-text">사원등록 파일을 업로드해주세요</div>
+      <div class="es-sub">당기 및 전기 사원등록 엑셀 파일을 업로드하면 자동으로 명세서가 생성됩니다</div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /tab-spec -->
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 2: 계산기                                  -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="tab-calc" class="main-tab-content">
+<div class="container">
+
+  <div class="panel no-print">
+    <div class="panel-header">&#9881; 기본 설정</div>
+    <div class="panel-body">
+      <div class="config-row">
+        <div class="field-group">
+          <label>법인 구분</label>
+          <select id="calc-corp-type" onchange="calc_onSettingsChange()">
+            <option value="중소">중소기업</option>
+            <option value="중견">중견기업</option>
+            <option value="대기업">대기업</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>입력 시작연도</label>
+          <select id="year-from" onchange="calc_onSettingsChange()"></select>
+        </div>
+        <div class="field-group">
+          <label>입력 종료연도</label>
+          <select id="year-to" onchange="calc_onSettingsChange()"></select>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);align-self:center;" id="info-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header" style="justify-content:space-between;">
+      <span>&#128203; 상시근로자수 입력</span>
+      <button onclick="calc_loadFromSpec()" style="background:var(--accent);color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;">명세서에서 가져오기</button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">시작연도별 상시근로자수를 입력하세요. <strong>25년 이전 시작 -> 종전 규정</strong>, <strong>25년부터 시작 -> 개정 규정</strong>으로 산출한 상시근로자수를 각각 입력합니다.</p>
+      <div id="load-status" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;font-size:11px;"></div>
+      <div id="input-area"></div>
+    </div>
+  </div>
+
+  <div id="timelines-area"></div>
+
+  <div class="panel">
+    <div class="panel-header" style="background:var(--accent);color:#fff;justify-content:space-between;">
+      <span>&#128200; 연도별 세액공제 종합</span>
+      <div style="display:flex;gap:6px;">
+        <button id="axis-toggle" onclick="calc_toggleAxis()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:5px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;">축 전환</button>
+        <button onclick="calc_exportExcel()" style="background:#0e7c61;color:#fff;border:none;border-radius:5px;padding:4px 14px;font-size:11px;font-weight:600;cursor:pointer;">&#128196; 엑셀 다운로드</button>
+      </div>
+    </div>
+    <div class="panel-body" id="summary-area"></div>
+  </div>
+
+</div>
+</div><!-- /tab-calc -->
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- FOOTER                                        -->
+<!-- ══════════════════════════════════════════════ -->
+<footer style="
+  background: #1a2332;
+  color: #8a9bb0;
+  text-align: center;
+  padding: 20px 32px;
+  font-size: 12px;
+  font-family: var(--font);
+  letter-spacing: .3px;
+  margin-top: 8px;
+">
+  <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
+    <span style="color:#fff;font-weight:600;font-size:13px;">Made with</span>
+    <span style="color:#e8eef8;">&#10038;</span>
+    <span style="color:#a8c4f0;font-weight:500;">김태현 세무사</span>
+    <span style="color:#4a5a6e;">&middot;</span>
+    <span style="color:#a8c4f0;font-weight:500;">Claude AI</span>
+    <span style="color:#4a5a6e;">|</span>
+    <span style="color:#5a6a7e;font-size:11px;">통합고용세액공제 명세서 + 계산기</span>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- CDN SCRIPTS (once)                            -->
+<!-- ══════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MAIN TAB SWITCHING                            -->
+<!-- ══════════════════════════════════════════════ -->
+<script>
+// Shared data object for 명세서 → 계산기 data transfer
+window.specData = null;
+
+function switchMainTab(tabId, navBtn, tabBtn) {
+  // Hide all main tab contents
+  document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+
+  // Update nav buttons
+  document.querySelectorAll('.nav-btns .nav-link').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.main-tab-btn').forEach(el => el.classList.remove('active'));
+
+  if (tabId === 'tab-spec') {
+    document.querySelectorAll('.nav-btns .nav-link')[0].classList.add('active');
+    document.querySelectorAll('.main-tab-btn')[0].classList.add('active');
+  } else {
+    document.querySelectorAll('.nav-btns .nav-link')[1].classList.add('active');
+    document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
+    // Auto-populate from specData if available
+    if (window.specData) {
+      calc_loadFromSpec(true);
+    }
+  }
+}
+</script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- 명세서 JAVASCRIPT                              -->
+<!-- ══════════════════════════════════════════════ -->
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATE (명세서)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let empData = { cur: null, prev: null };
+let allDepts = new Set();
+let allPositions = new Set();
+
+let overrides = {};
+let ynEdits = {};
+let shortTimeEdits = {};
+let reasonEdits = {};
+
+let metroDepts = new Set();
+let execPositions = new Set();
+
+const METRO_KEYWORDS  = ['본사','안양','인천','서울','경기','수원','성남','부천','의정부','고양','현장'];
+const EXEC_KEYWORDS   = ['대표이사','대표자','부사장','사장','부회장','전무','상무','이사','감사','고문','부이사장','회장'];
+
+function guessMetro(dept)  { return METRO_KEYWORDS.some(k => dept.includes(k)); }
+function guessExec(pos)    { return EXEC_KEYWORDS.some(k => pos.includes(k)); }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FILE HANDLING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function clearEditsForKey(key) {
+  Object.keys(overrides).forEach(k => { if (k.startsWith(key+':')) delete overrides[k]; });
+  Object.keys(reasonEdits).forEach(k => { if (k.startsWith(key+':')) delete reasonEdits[k]; });
+  Object.keys(shortTimeEdits).forEach(k => { if (k.startsWith(key+':')) delete shortTimeEdits[k]; });
+  Object.keys(ynEdits).forEach(k => { if (k.startsWith(key+':')) delete ynEdits[k]; });
+}
+function handleFile(input, key) {
+  const file = input.files[0];
+  if (!file) return;
+  clearEditsForKey(key);
+  readExcel(file, key, file.name);
+}
+
+function handleDragOver(e, id) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById(id).classList.add('drag-over');
+}
+function handleDragLeave(e, id) {
+  e.preventDefault(); e.stopPropagation();
+  const card = document.getElementById(id);
+  if (!card.contains(e.relatedTarget)) {
+    card.classList.remove('drag-over');
+  }
+}
+function handleDrop(e, key) {
+  e.preventDefault(); e.stopPropagation();
+  const id = 'drop-' + key;
+  document.getElementById(id).classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) readExcel(file, key, file.name);
+}
+
+function readExcel(file, key, fname) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    // 포맷C 감지: 자체 출력 템플릿
+    const templateHeaderRows = [];
+    for (let i = 0; i < Math.min(rows.length, 100); i++) {
+      if (Array.isArray(rows[i]) && rows[i].some(cell => String(cell).includes('\u246D'))) {
+        templateHeaderRows.push(i);
+      }
+    }
+
+    if (templateHeaderRows.length > 0) {
+      clearEditsForKey('cur');
+      clearEditsForKey('prev');
+      const loadSection = (headerIdx, setKey) => {
+        const dataStart = headerIdx + 2;
+        const emps = [];
+        for (let i = dataStart; i < dataStart + 70 && i < rows.length; i++) {
+          const r = rows[i];
+          if (!r) continue;
+          const name = String(r[1] || '').trim();
+          if (!name) continue;
+          const birthStr = String(r[0] || '').replace(/\D/g, '');
+          if (birthStr.length !== 8) continue;
+
+          const code = String(emps.length + 1);
+          const reason = String(r[3] || '').trim();
+          const shortTime = String(r[4] || '').trim();
+          const domestic = String(r[5] || '').trim();
+          const metro = String(r[6] || '').trim();
+          const hireStr = String(r[7] || '').replace(/\D/g, '');
+
+          const yy = birthStr.substring(2, 4);
+          const mmdd = birthStr.substring(4, 8);
+          const gd = parseInt(birthStr.substring(0, 4)) >= 2000 ? '3' : '1';
+          const ssn = yy + mmdd + gd + '000000';
+
+          emps.push({
+            code, name, ssn,
+            foreigner: domestic === 'Y' ? '내국인' : '외국인',
+            hire_date: hireStr,
+            resign_date: '',
+            dept: '', position: '',
+            employ_insur: '여',
+            disabled: String(r[14] || 'N') === 'Y' ? 1 : 0,
+            age60plus: 0,
+          });
+
+          const rMap = {'임원':'ⓒ 임원','친족':'ⓓ 최대주주·친족','최대주주':'ⓓ 최대주주·친족','단시간':'ⓑ 단시간','기타':'ⓕ 기타','1년미만':'ⓐ 근로계약1년미만','근로계약1년미만':'ⓐ 근로계약1년미만','원천징수미확인':'ⓔ 원천징수미확인'};
+          const mappedReason = reason ? (rMap[reason.trim()] || reason) : '';
+          const eKey = setKey + ':' + code;
+          if (mappedReason) {
+            reasonEdits[eKey] = mappedReason;
+            overrides[eKey] = 'N';
+          }
+          if (shortTime === '0.5' || shortTime === '0.75') {
+            shortTimeEdits[eKey] = shortTime;
+          }
+          if (metro) ynEdits[eKey + ':metro'] = metro;
+          if (String(r[16] || '') === 'Y') ynEdits[eKey + ':career'] = 'Y';
+          if (String(r[17] || '') === 'Y') ynEdits[eKey + ':nkDefector'] = 'Y';
+          if (String(r[18] || '') === 'Y') ynEdits[eKey + ':regularConvert'] = 'Y';
+          if (String(r[19] || '') === 'Y') ynEdits[eKey + ':childcareReturn'] = 'Y';
+        }
+        return emps;
+      };
+
+      if (templateHeaderRows.length >= 1) {
+        empData.cur = loadSection(templateHeaderRows[0], 'cur');
+        const el1 = document.getElementById('filename-cur');
+        el1.textContent = fname + ' (당기)';
+        el1.style.display = 'inline-block';
+        document.getElementById('drop-cur').classList.add('has-file');
+      }
+      if (templateHeaderRows.length >= 2) {
+        empData.prev = loadSection(templateHeaderRows[1], 'prev');
+        const el2 = document.getElementById('filename-prev');
+        el2.textContent = fname + ' (직전)';
+        el2.style.display = 'inline-block';
+        document.getElementById('drop-prev').classList.add('has-file');
+      }
+
+      renderCheckboxes();
+      if (empData.cur || empData.prev) spec_calculate();
+      return;
+    }
+
+    // 기존 파싱 (포맷A/B)
+    const parsed = parseEmployees(rows);
+    empData[key] = parsed;
+
+    const el = document.getElementById('filename-' + key);
+    el.textContent = fname;
+    el.style.display = 'inline-block';
+    document.getElementById('drop-' + key).classList.add('has-file');
+
+    const isTemplateData = parsed.length > 0 && parsed[0]._isTemplate;
+    if (!isTemplateData) {
+      parsed.forEach(e => {
+        if (e.dept && !allDepts.has(e.dept)) {
+          allDepts.add(e.dept);
+          if (guessMetro(e.dept)) metroDepts.add(e.dept);
+        }
+        if (e.position && !allPositions.has(e.position)) {
+          allPositions.add(e.position);
+          if (guessExec(e.position)) execPositions.add(e.position);
+        }
+      });
+    }
+    renderCheckboxes();
+
+    if (empData.cur || empData.prev) spec_calculate();
+  };
+  reader.readAsBinaryString(file);
+}
+
+// 템플릿 엑셀 다운로드
+function downloadTemplate() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('템플릿');
+
+  const headers = ['생년월일', '성명', '상시근로자', '상시근로자제외사유', '단시간근로자유형', '내국인', '수도권', '근로계약체결일', '퇴사년월일', '장애인', '병역기간(년)'];
+  const headerRow = ws.addRow(headers);
+  headerRow.eachCell(cell => {
+    cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = { top:{style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+  });
+
+  const example = ['19910315', '홍길동', 'Y', '', '', 'Y', 'Y', '20230301', '', 'N', ''];
+  const exRow = ws.addRow(example);
+  exRow.eachCell(cell => {
+    cell.font = { name: '맑은 고딕', size: 10, color: { argb: 'FF999999' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = { top:{style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+  });
+
+  const guideRow = ws.addRow(['YYYYMMDD', '', 'Y/N', '임원/친족/기타/빈칸', '0.5 또는 0.75', 'Y/N', 'Y/N', 'YYYYMMDD', 'YYYYMMDD(선택)', 'Y/N', '0~6(선택)']);
+  guideRow.eachCell(cell => {
+    cell.font = { name: '맑은 고딕', size: 8, italic: true, color: { argb: 'FF888888' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  });
+
+  ws.columns = [
+    { width: 14 }, { width: 12 }, { width: 12 }, { width: 18 }, { width: 16 },
+    { width: 8 }, { width: 8 }, { width: 14 }, { width: 14 }, { width: 8 }, { width: 14 }
+  ];
+
+  for (let r = 2; r <= 50; r++) {
+    ws.getCell(r, 3).dataValidation = { type: 'list', formulae: ['"Y,N"'], showDropDown: true };
+    ws.getCell(r, 4).dataValidation = { type: 'list', formulae: ['"임원,친족,기타"'], showDropDown: true };
+    ws.getCell(r, 5).dataValidation = { type: 'list', formulae: ['"0.5,0.75"'], showDropDown: true };
+    ws.getCell(r, 6).dataValidation = { type: 'list', formulae: ['"Y,N"'], showDropDown: true };
+    ws.getCell(r, 7).dataValidation = { type: 'list', formulae: ['"Y,N"'], showDropDown: true };
+    ws.getCell(r, 10).dataValidation = { type: 'list', formulae: ['"Y,N"'], showDropDown: true };
+  }
+
+  wb.xlsx.writeBuffer().then(buf => {
+    saveAs(new Blob([buf], { type: 'application/octet-stream' }), '통합고용_템플릿.xlsx');
+  });
+}
+
+function parseEmployees(rows) {
+  if (!rows || rows.length < 2) return [];
+  const header = rows[0];
+  const headerStr = header.map(h => String(h).replace(/\r\n/g,' ').replace(/\n/g,' ').trim());
+  const idx = {};
+  headerStr.forEach((h, i) => { idx[h] = i; });
+
+  const isFormatB = headerStr.some(h => h.includes('사원번호')) && headerStr.some(h => h.includes('내/외국인'));
+
+  function findCol(keywords) {
+    for (const kw of keywords) {
+      const found = headerStr.findIndex(h => h.includes(kw));
+      if (found >= 0) return found;
+    }
+    return -1;
+  }
+
+  const employees = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 3) continue;
+
+    let emp;
+
+    if (isFormatB) {
+      const colCode   = findCol(['사원번호']);
+      const colName   = findCol(['사원명']);
+      const colSsn    = findCol(['주민(외국인)등록번호', '주민등록번호']);
+      const colFrgn   = findCol(['내/외국인']);
+      const colHire   = findCol(['입사년월일']);
+      const colResign = findCol(['퇴사년월일']);
+      const colDept   = findCol(['부서']);
+      const colPos    = findCol(['직위']);
+      const colEmpIns = findCol(['고용 적용', '고용적용']);
+      const colExec   = findCol(['대표자 여부', '대표자여부']);
+      const colAge65  = findCol(['고용 65세이상', '65세이상']);
+
+      const name = colName >= 0 ? String(r[colName]).trim() : '';
+      if (!name || name === 'undefined') continue;
+
+      const frgnCode = colFrgn >= 0 ? String(r[colFrgn]).trim() : '1';
+      const foreigner = frgnCode === '2' ? '외국인' : '내국인';
+
+      const empInsCode = colEmpIns >= 0 ? String(r[colEmpIns]).trim() : '1';
+      const employ_insur = empInsCode === '1' ? '여' : '부';
+
+      const isRepre = colExec >= 0 ? String(r[colExec]).trim() === '1' : false;
+
+      const dept = colDept >= 0 ? String(r[colDept]).trim() : '';
+      const position = colPos >= 0 ? String(r[colPos]).trim() : '';
+
+      emp = {
+        code: colCode >= 0 ? String(r[colCode]).trim() : String(i),
+        name,
+        ssn: colSsn >= 0 ? String(r[colSsn]).trim() : '',
+        foreigner,
+        hire_date: colHire >= 0 ? String(r[colHire]).replace(/\D/g,'') : '',
+        resign_date: colResign >= 0 ? String(r[colResign]).replace(/\D/g,'') : '',
+        dept,
+        position: isRepre ? '대표자' : position,
+        employ_insur,
+        disabled: 0,
+        age60plus: 0,
+        _isRepresentative: isRepre,
+      };
+    } else {
+      const get = (k) => {
+        if (idx[k] !== undefined) return r[idx[k]] !== undefined ? r[idx[k]] : '';
+        const fi = headerStr.findIndex(h => h.includes(k));
+        return fi >= 0 && r[fi] !== undefined ? r[fi] : '';
+      };
+
+      const name = String(get('사원명')).trim();
+      if (!name || name === 'undefined') continue;
+
+      emp = {
+        code: String(get('사원코드') || get('사원번호') || i),
+        name,
+        ssn: String(get('주민(외국인)등록번호')),
+        foreigner: String(get('내외국인구분')),
+        hire_date: String(get('입사일자')).replace(/\D/g,''),
+        resign_date: String(get('퇴사일자')).replace(/\D/g,''),
+        dept: String(get('부서')).trim(),
+        position: String(get('직급')).trim(),
+        employ_insur: String(get('고용보험적용여부')),
+        disabled: parseInt(get('장애인')) || 0,
+        age60plus: parseInt(get('60세이상')) || 0,
+      };
+    }
+
+    employees.push(emp);
+  }
+
+  // 포맷C: 템플릿 형식
+  if (employees.length === 0) {
+    const isTemplate = headerStr.some(h => h.includes('생년월일')) &&
+                       (headerStr.some(h => h.includes('성명')) || headerStr.some(h => h.includes('사원명'))) &&
+                       headerStr.some(h => h.includes('내국인'));
+    if (isTemplate) {
+      const colBirth   = findCol(['생년월일']);
+      const colName    = findCol(['성명', '사원명']);
+      const colRegular = headerStr.findIndex(h => {
+        const t = h.trim();
+        return t === '상시근로자' || t === '상시근로자여부' || t === '상시근로자(Y/N)' || t === '상시근로자(N/Y)';
+      });
+      const colReason  = findCol(['상시근로자제외사유', '제외사유']);
+      const colShort   = findCol(['단시간근로자유형', '단시간']);
+      const colDom     = findCol(['내국인']);
+      const colMetro   = findCol(['수도권']);
+      const colHire    = findCol(['근로계약체결일', '계약체결일']);
+      const colResign  = findCol(['퇴사년월일', '퇴사일']);
+      const colDisab   = findCol(['장애인']);
+      const colMilitary = findCol(['병역기간', '병역기간(년)', '병역']);
+
+      let shiftDetected = false;
+      if (colRegular < 0 && colReason >= 0 && rows.length > 1) {
+        const sampleVals = [];
+        for (let si = 1; si < Math.min(rows.length, 10); si++) {
+          if (rows[si] && rows[si][colReason] !== undefined) {
+            sampleVals.push(String(rows[si][colReason]).trim().toUpperCase());
+          }
+        }
+        const allYN = sampleVals.length > 0 && sampleVals.every(v => v === 'Y' || v === 'N' || v === '');
+        if (allYN) {
+          shiftDetected = true;
+        }
+      }
+
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length < 2) continue;
+        const name = colName >= 0 ? String(r[colName]).trim() : '';
+        if (!name || name === 'undefined') continue;
+
+        let regularYN, reason, shortT, dom, metro, hireStr, resignStr, disab;
+
+        if (colRegular >= 0) {
+          regularYN = String(r[colRegular]).trim().toUpperCase();
+          reason    = colReason >= 0 ? String(r[colReason]).trim() : '';
+          shortT    = colShort >= 0 ? String(r[colShort]).trim() : '';
+          dom       = colDom >= 0 ? String(r[colDom]).trim().toUpperCase() : 'Y';
+          metro     = colMetro >= 0 ? String(r[colMetro]).trim().toUpperCase() : 'N';
+          hireStr   = colHire >= 0 ? String(r[colHire]).replace(/\D/g,'') : '';
+          resignStr = colResign >= 0 ? String(r[colResign]).replace(/\D/g,'') : '';
+          disab     = colDisab >= 0 ? String(r[colDisab]).trim().toUpperCase() : 'N';
+        } else if (shiftDetected) {
+          const sc = colReason;
+          regularYN = String(r[sc] || '').trim().toUpperCase();
+          reason    = String(r[sc + 1] || '').trim();
+          shortT    = String(r[sc + 2] || '').trim();
+          dom       = String(r[sc + 3] || '').trim().toUpperCase() || 'Y';
+          metro     = String(r[sc + 4] || '').trim().toUpperCase() || 'N';
+          hireStr   = String(r[sc + 5] || '').replace(/\D/g,'');
+          resignStr = '';
+          disab     = String(r[sc + 6] || '').trim().toUpperCase() || 'N';
+        } else {
+          regularYN = '';
+          reason    = colReason >= 0 ? String(r[colReason]).trim() : '';
+          shortT    = colShort >= 0 ? String(r[colShort]).trim() : '';
+          dom       = colDom >= 0 ? String(r[colDom]).trim().toUpperCase() : 'Y';
+          metro     = colMetro >= 0 ? String(r[colMetro]).trim().toUpperCase() : 'N';
+          hireStr   = colHire >= 0 ? String(r[colHire]).replace(/\D/g,'') : '';
+          resignStr = colResign >= 0 ? String(r[colResign]).replace(/\D/g,'') : '';
+          disab     = colDisab >= 0 ? String(r[colDisab]).trim().toUpperCase() : 'N';
+        }
+
+        const birthStr = colBirth >= 0 ? String(r[colBirth]).replace(/\D/g,'') : '';
+
+        const reasonMap = {
+          '근로계약1년미만': 'ⓐ 근로계약1년미만', '1년미만': 'ⓐ 근로계약1년미만',
+          '단시간': 'ⓑ 단시간',
+          '임원': 'ⓒ 임원',
+          '최대주주': 'ⓓ 최대주주·친족', '친족': 'ⓓ 최대주주·친족', '최대주주·친족': 'ⓓ 최대주주·친족',
+          '원천징수미확인': 'ⓔ 원천징수미확인',
+          '기타': 'ⓕ 기타',
+          'ⓐ 근로계약1년미만': 'ⓐ 근로계약1년미만', 'ⓑ 단시간': 'ⓑ 단시간',
+          'ⓒ 임원': 'ⓒ 임원', 'ⓓ 최대주주·친족': 'ⓓ 최대주주·친족',
+          'ⓔ 원천징수미확인': 'ⓔ 원천징수미확인', 'ⓕ 기타': 'ⓕ 기타',
+        };
+        let templateReason = reason ? (reasonMap[reason.trim()] || 'ⓕ 기타') : '';
+        if (regularYN === 'N' && !templateReason) templateReason = 'ⓕ 기타';
+
+        employees.push({
+          code: String(i),
+          name,
+          ssn: '',
+          foreigner: dom === 'Y' ? '내국인' : '외국인',
+          hire_date: hireStr,
+          resign_date: resignStr,
+          dept: '',
+          position: '',
+          employ_insur: '여',
+          disabled: disab === 'Y' ? 1 : 0,
+          age60plus: 0,
+          _isTemplate: true,
+          _birthDateStr: birthStr,
+          _templateReason: templateReason,
+          _templateShortTime: (shortT === '0.5' || shortT === '0.75') ? shortT : '',
+          _templateDomestic: dom === 'Y' ? 'Y' : 'N',
+          _templateMetro: metro === 'Y' ? 'Y' : 'N',
+          militaryYears: colMilitary >= 0 ? (parseFloat(r[colMilitary]) || 0) : 0,
+        });
+      }
+    }
+  }
+
+  return employees;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CHECKBOX RENDERING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderCheckboxes() {
+  const deptDiv = document.getElementById('dept-checkboxes');
+  deptDiv.innerHTML = '';
+  [...allDepts].sort().forEach(d => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--surface2);padding:4px 10px;border-radius:4px;border:1px solid var(--border);';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = metroDepts.has(d);
+    cb.onchange = () => { cb.checked ? metroDepts.add(d) : metroDepts.delete(d); };
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(d || '(미지정)'));
+    deptDiv.appendChild(label);
+  });
+
+  const posDiv = document.getElementById('exec-checkboxes');
+  posDiv.innerHTML = '';
+  [...allPositions].sort().forEach(p => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--surface2);padding:4px 10px;border-radius:4px;border:1px solid var(--border);';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = execPositions.has(p);
+    cb.onchange = () => { cb.checked ? execPositions.add(p) : execPositions.delete(p); };
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(p));
+    posDiv.appendChild(label);
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CORE CALCULATION LOGIC (명세서)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function getYearFromSsn(ssn) {
+  const clean = ssn.replace(/\D/g,'');
+  if (clean.length < 7) return null;
+  const yy = parseInt(clean.substring(0,2));
+  const genderDigit = parseInt(clean[6]);
+  let century = 1900;
+  if (genderDigit === 3 || genderDigit === 4 || genderDigit === 7 || genderDigit === 8) century = 2000;
+  return century + yy;
+}
+
+function getBirthDate(ssn) {
+  const clean = ssn.replace(/\D/g,'');
+  if (clean.length < 6) return null;
+  const yy = parseInt(clean.substring(0,2));
+  const mm = parseInt(clean.substring(2,4));
+  const dd = parseInt(clean.substring(4,6));
+  const genderDigit = parseInt(clean[6]);
+  let century = 1900;
+  if (genderDigit === 3 || genderDigit === 4 || genderDigit === 7 || genderDigit === 8) century = 2000;
+  const year = century + yy;
+  return new Date(year, mm-1, dd);
+}
+
+function getAgeAt(birthDate, refDate) {
+  if (!birthDate) return 99;
+  let age = refDate.getFullYear() - birthDate.getFullYear();
+  const mDiff = refDate.getMonth() - birthDate.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && refDate.getDate() < birthDate.getDate())) age--;
+  return age;
+}
+
+function getAgeWithMilitary(birthDate, refDate, militaryYears) {
+  const age = getAgeAt(birthDate, refDate);
+  const deduction = Math.min(militaryYears || 0, 6);
+  return age - deduction;
+}
+
+function parseDateStr(s) {
+  const str = String(s).replace(/\D/g,'');
+  if (str.length < 8) return null;
+  return new Date(parseInt(str.substring(0,4)), parseInt(str.substring(4,6))-1, parseInt(str.substring(6,8)));
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${y}${m}${dd}`;
+}
+
+function isRegularWorker(emp, taxYear) {
+  if (emp.employ_insur === '부') return { regular: false, reason: 'ⓒ 임원' };
+  if (execPositions.has(emp.position)) return { regular: false, reason: 'ⓒ 임원' };
+  return { regular: true, reason: '' };
+}
+
+function calcWorkMonths(emp, taxYear) {
+  const yearStart = new Date(taxYear, 0, 1);
+  const yearEnd = new Date(taxYear, 11, 31);
+
+  const hireDate = parseDateStr(emp.hire_date);
+  if (!hireDate) return { months: 0, startM: 0, endM: 0 };
+
+  let resignDate = emp.resign_date ? parseDateStr(emp.resign_date) : null;
+
+  const workStart = hireDate > yearStart ? hireDate : yearStart;
+  const workEnd = resignDate && resignDate < yearEnd ? resignDate : yearEnd;
+
+  if (workStart > workEnd) return { months: 0, startM: 0, endM: 0 };
+
+  let startMonth = workStart.getMonth() + 1;
+  let endMonth = workEnd.getMonth() + 1;
+
+  if (resignDate && resignDate < yearEnd) {
+    const lastDayOfMonth = new Date(resignDate.getFullYear(), resignDate.getMonth() + 1, 0).getDate();
+    if (resignDate.getDate() < lastDayOfMonth) {
+      endMonth = endMonth - 1;
+    }
+  }
+
+  let months = endMonth - startMonth + 1;
+  if (months < 0) months = 0;
+
+  return { months, startM: startMonth, endM: endMonth };
+}
+
+function isYouthAtYear(birthDate, taxYear, militaryYears) {
+  if (!birthDate) return false;
+  const refDate = new Date(taxYear, 11, 31);
+  const age = getAgeWithMilitary(birthDate, refDate, militaryYears);
+  return age >= 15 && age <= 34;
+}
+
+function isYouthAtHire(birthDate, hireDate, militaryYears) {
+  if (!birthDate || !hireDate) return false;
+  const age = getAgeWithMilitary(birthDate, hireDate, militaryYears);
+  return age >= 15 && age <= 34;
+}
+
+function calcYouthExclude(birthDate, hireDate, corpType, taxYear, militaryYears) {
+  if (!birthDate || !hireDate) return null;
+  const keepYears = (taxYear === 2025)
+    ? ((corpType === '대기업') ? 2 : 3)
+    : ((corpType === '대기업') ? 3 : 4);
+  const hireExclude = new Date(hireDate.getFullYear() + keepYears, hireDate.getMonth(), hireDate.getDate());
+  const milDeduct = Math.min(militaryYears || 0, 6);
+  const ageLimit = 35 + milDeduct;
+  const ageLimitDate = new Date(birthDate.getFullYear() + ageLimit, birthDate.getMonth(), birthDate.getDate());
+  const excludeDate = hireExclude > ageLimitDate ? hireExclude : ageLimitDate;
+  return formatDate(excludeDate);
+}
+
+function isElderlyAtHire(birthDate, hireDate) {
+  if (!birthDate || !hireDate) return false;
+  return getAgeAt(birthDate, hireDate) >= 60;
+}
+
+function processEmployees(employees, taxYear, corpType) {
+  const setKey = (taxYear === parseInt(document.getElementById('tax-year').value)) ? 'cur' : 'prev';
+  return employees.map(emp => {
+    const birthDate = emp._birthDateStr ? parseDateStr(emp._birthDateStr) : getBirthDate(emp.ssn);
+    const hireDate = parseDateStr(emp.hire_date);
+    const resignDate = emp.resign_date ? parseDateStr(emp.resign_date) : null;
+
+    let regular, reason;
+    if (emp._isTemplate) {
+      reason = emp._templateReason || '';
+      regular = !reason;
+    } else {
+      ({ regular, reason } = isRegularWorker(emp, taxYear));
+    }
+
+    const metro = emp._isTemplate ? (emp._templateMetro || 'N') : (metroDepts.has(emp.dept) ? 'Y' : 'N');
+    const domestic = emp._isTemplate ? (emp._templateDomestic || 'Y') : ((emp.foreigner === '내국인') ? 'Y' : 'N');
+
+    const { months, startM, endM } = calcWorkMonths(emp, taxYear);
+
+    let regularMonths = 0;
+    let youthMonths = 0;
+
+    let isYouthYear = false, isYouthHire = false, youthExclude = '';
+    let isDisabled = false;
+    let elderlyAtHire = false;
+    let isPreAmendYouth = false;
+    const isPreAmendContract = hireDate && hireDate < new Date(2025, 0, 1);
+    const militaryYears = emp.militaryYears || 0;
+
+    const stKey2 = setKey + ':' + emp.code;
+    const isShortTime = !!(shortTimeEdits[stKey2] || emp.shortTimeType);
+    const isYouthExcludedByType = isShortTime;
+
+    if (birthDate) {
+      isYouthYear = isYouthAtYear(birthDate, taxYear, militaryYears);
+      isDisabled = emp.disabled > 0;
+      elderlyAtHire = hireDate ? isElderlyAtHire(birthDate, hireDate) : false;
+
+      if (isPreAmendContract) {
+        isYouthHire = false;
+        if (months > 0 && !isYouthExcludedByType) {
+          for (let m = startM; m <= endM; m++) {
+            const mEnd = new Date(taxYear, m - 1 + 1, 0);
+            const age = getAgeWithMilitary(birthDate, mEnd, militaryYears);
+            if (age >= 15 && age <= 34) { isPreAmendYouth = true; break; }
+          }
+        }
+      } else {
+        if (isYouthExcludedByType) {
+          isYouthHire = false;
+        } else {
+          isYouthHire = hireDate ? isYouthAtHire(birthDate, hireDate, militaryYears) : false;
+        }
+        if (isYouthHire) {
+          youthExclude = calcYouthExclude(birthDate, hireDate, corpType, taxYear, militaryYears);
+        }
+      }
+    }
+
+    let potentialRegularMonths = 0;
+    let potentialYouthMonths = 0;
+
+    if (months > 0) {
+      potentialRegularMonths = months;
+      if (isYouthHire || isPreAmendYouth || isDisabled || elderlyAtHire) {
+        if (isPreAmendContract && isPreAmendYouth && !isDisabled && !elderlyAtHire) {
+          let youthMonthCount = 0;
+          for (let m = startM; m <= endM; m++) {
+            const monthEnd = new Date(taxYear, m - 1 + 1, 0);
+            const age = getAgeWithMilitary(birthDate, monthEnd, militaryYears);
+            if (age >= 15 && age <= 34) youthMonthCount++;
+          }
+          potentialYouthMonths = youthMonthCount;
+        } else if (isYouthHire && youthExclude && !isDisabled && !elderlyAtHire) {
+          const excDate = parseDateStr(youthExclude);
+          if (excDate) {
+            const yearStart = new Date(taxYear, 0, 1);
+            const yearEnd = new Date(taxYear, 11, 31);
+            if (excDate >= yearStart && excDate <= yearEnd) {
+              const excMonth = excDate.getMonth() + 1;
+              const effEndM = Math.min(endM, excMonth - 1);
+              potentialYouthMonths = Math.max(0, effEndM - startM + 1);
+            } else if (excDate < yearStart) {
+              potentialYouthMonths = 0;
+            } else {
+              potentialYouthMonths = potentialRegularMonths;
+            }
+          } else {
+            potentialYouthMonths = potentialRegularMonths;
+          }
+        } else {
+          potentialYouthMonths = potentialRegularMonths;
+        }
+      }
+    }
+
+    if (regular) {
+      youthMonths = potentialYouthMonths;
+      regularMonths = potentialRegularMonths - potentialYouthMonths;
+    }
+
+    let birthStr = '';
+    if (birthDate) {
+      birthStr = `${birthDate.getFullYear()}${String(birthDate.getMonth()+1).padStart(2,'0')}${String(birthDate.getDate()).padStart(2,'0')}`;
+    }
+
+    const hasWorkRecord = startM > 0;
+    const workPeriod = hasWorkRecord ? `${String(startM).padStart(2,'0')}~${String(endM).padStart(2,'0')}` : '';
+
+    return {
+      ...emp,
+      birthStr,
+      regular: regular ? 'Y' : 'N',
+      reason,
+      metro,
+      domestic,
+      hireStr: emp.hire_date ? emp.hire_date.substring(0,8) : '',
+      resignStr: emp.resign_date ? String(emp.resign_date).replace(/\D/g,'').substring(0,8) : '',
+      workPeriod,
+      regularMonths,
+      youthMonths,
+      potentialRegularMonths,
+      potentialYouthMonths,
+      shortTimeType: emp._templateShortTime || '',
+      isYouthYear: (isYouthYear || isPreAmendYouth) ? 'Y' : 'N',
+      isYouthHire: isYouthHire ? 'Y' : 'N',
+      youthExclude: (isYouthHire && youthExclude) ? youthExclude
+        : (isPreAmendContract && birthDate && birthDate.getFullYear() + 35 >= taxYear)
+          ? formatDate(new Date(birthDate.getFullYear() + 35, birthDate.getMonth(), birthDate.getDate()))
+          : '',
+      isDisabled: isDisabled ? 'Y' : 'N',
+      isElderly: elderlyAtHire ? 'Y' : 'N',
+      elderlyAtHire,
+    };
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AGGREGATE CALCULATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function truncHundredth(n) {
+  return Math.floor(n * 100) / 100;
+}
+function roundP2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+function calcAgg(processed) {
+  const months12 = 12;
+  const totalMonths = processed.reduce((s,e) => s + (e.regularMonths + e.youthMonths), 0);
+
+  const youthTotalMonths = processed
+    .filter(e => e.regular === 'Y' && e.youthMonths > 0 &&
+      e.isDisabled !== 'Y' && !e.elderlyAtHire &&
+      (e._career||'N') !== 'Y' && (e._nkDefector||'N') !== 'Y' &&
+      (e._regularConvert||'N') !== 'Y' && (e._childcareReturn||'N') !== 'Y')
+    .reduce((s,e) => s + e.youthMonths, 0);
+
+  const disabledMonths = processed
+    .filter(e => e.regular === 'Y' && e.isDisabled === 'Y')
+    .reduce((s,e) => s + (e.regularMonths + e.youthMonths), 0);
+
+  const elderlyMonths = processed
+    .filter(e => e.regular === 'Y' && e.elderlyAtHire)
+    .reduce((s,e) => s + (e.regularMonths + e.youthMonths), 0);
+
+  const careerMonths = processed
+    .filter(e => e.regular === 'Y' && (e._career||'N') === 'Y')
+    .reduce((s,e) => s + (e.regularMonths + e.youthMonths), 0);
+
+  const nkDefectorMonths = processed
+    .filter(e => e.regular === 'Y' && (e._nkDefector||'N') === 'Y')
+    .reduce((s,e) => s + (e.regularMonths + e.youthMonths), 0);
+
+  const workerCount = roundP2(processed
+    .filter(e => e.regular === 'Y')
+    .reduce((s, e) => s + truncHundredth((e.regularMonths + e.youthMonths) / months12), 0));
+
+  const youthWorkerCount = roundP2(processed
+    .filter(e => e.regular === 'Y')
+    .reduce((s, e) => s + truncHundredth(e.youthMonths / months12), 0));
+
+  const nonYouthWorkerCount = roundP2(workerCount - youthWorkerCount);
+
+  const active = processed.filter(e => e.regular === 'Y');
+  const youthMetro    = roundP2(active.filter(e => e.metro === 'Y').reduce((s,e) => s + truncHundredth(e.youthMonths / months12), 0));
+  const youthLocal    = roundP2(active.filter(e => e.metro !== 'Y').reduce((s,e) => s + truncHundredth(e.youthMonths / months12), 0));
+  const nonYouthMetro = roundP2(active.filter(e => e.metro === 'Y').reduce((s,e) => s + truncHundredth((e.regularMonths + e.youthMonths) / months12), 0) - youthMetro);
+  const nonYouthLocal = roundP2(active.filter(e => e.metro !== 'Y').reduce((s,e) => s + truncHundredth((e.regularMonths + e.youthMonths) / months12), 0) - youthLocal);
+
+  return {
+    totalMonths, months12, workerCount,
+    youthTotalMonths, disabledMonths, elderlyMonths,
+    careerMonths, nkDefectorMonths,
+    youthTotalSum: youthTotalMonths + disabledMonths + elderlyMonths + careerMonths + nkDefectorMonths,
+    youthWorkerCount, nonYouthWorkerCount,
+    youthMetro, youthLocal, nonYouthMetro, nonYouthLocal
+  };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIN CALCULATE (명세서)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function spec_calculate() {
+  if (!empData.cur && !empData.prev) {
+    alert('당기 또는 전기 사원등록 파일을 업로드해주세요.');
+    return;
+  }
+
+  const taxYear = parseInt(document.getElementById('tax-year').value) || 2025;
+  const prevYear = taxYear - 1;
+  const corpType = document.getElementById('spec-corp-type').value || '중소';
+
+  let curProcessed  = empData.cur  ? processEmployees(empData.cur, taxYear, corpType)   : [];
+  let prevProcessed = empData.prev ? processEmployees(empData.prev, prevYear, corpType) : [];
+
+  // 오버라이드 적용
+  curProcessed = curProcessed.map(emp => {
+    const key = 'cur:' + emp.code;
+    if (overrides[key] !== undefined) {
+      const forced = overrides[key];
+      return {
+        ...emp,
+        regular: forced,
+        youthMonths:   forced === 'Y' ? emp.potentialYouthMonths   : 0,
+        regularMonths: forced === 'Y' ? (emp.potentialRegularMonths - emp.potentialYouthMonths) : 0,
+        reason: forced === 'N' ? (reasonEdits['cur:' + emp.code] || emp.reason || '수동제외') : '',
+        _override: forced,
+        _autoRegular: emp.regular,
+      };
+    }
+    return emp;
+  });
+  prevProcessed = prevProcessed.map(emp => {
+    const key = 'prev:' + emp.code;
+    if (overrides[key] !== undefined) {
+      const forced = overrides[key];
+      return {
+        ...emp,
+        regular: forced,
+        youthMonths:   forced === 'Y' ? emp.potentialYouthMonths   : 0,
+        regularMonths: forced === 'Y' ? (emp.potentialRegularMonths - emp.potentialYouthMonths) : 0,
+        reason: forced === 'N' ? (reasonEdits['prev:' + emp.code] || emp.reason || '수동제외') : '',
+        _override: forced,
+        _autoRegular: emp.regular,
+      };
+    }
+    return emp;
+  });
+
+  // Y/N 셀 수동 편집 적용 + 개월수 재계산
+  function applyYnEdits(processed, setKey, yearForCalc) {
+    return processed.map(emp => {
+      const get = (field) => {
+        const key = setKey + ':' + emp.code + ':' + field;
+        return ynEdits[key];
+      };
+      const copy = {...emp};
+      const ynFields = {
+        'regular': 'regular', 'domestic': 'domestic', 'metro': 'metro',
+        'isYouthYear': 'isYouthYear', 'isYouthHire': 'isYouthHire',
+        'isDisabled': 'isDisabled', 'elderlyAtHire': 'elderlyAtHire',
+        'career': '_career', 'nkDefector': '_nkDefector',
+        'regularConvert': '_regularConvert', 'childcareReturn': '_childcareReturn'
+      };
+      let anyChanged = false;
+      for (const [field, prop] of Object.entries(ynFields)) {
+        const v = get(field);
+        if (v !== undefined) {
+          if (prop === 'elderlyAtHire') {
+            copy[prop] = v === 'Y';
+          } else {
+            copy[prop] = v;
+          }
+          anyChanged = true;
+        }
+      }
+
+      if (anyChanged) {
+        if (copy.regular === 'Y') {
+          copy.regularMonths = copy.potentialRegularMonths || 0;
+        } else {
+          copy.regularMonths = 0;
+          copy.youthMonths = 0;
+          const stKey = setKey + ':' + emp.code;
+          copy.shortTimeType = shortTimeEdits.hasOwnProperty(stKey) ? shortTimeEdits[stKey] : (copy.shortTimeType || '');
+          return copy;
+        }
+
+        const totalMonthsForCalc = copy.regularMonths;
+        const hasSpecial = (copy.isDisabled === 'Y' || copy.elderlyAtHire === true ||
+          (copy._career||'N') === 'Y' || (copy._nkDefector||'N') === 'Y' ||
+          (copy._regularConvert||'N') === 'Y' || (copy._childcareReturn||'N') === 'Y');
+
+        if (hasSpecial) {
+          copy.youthMonths = totalMonthsForCalc;
+        } else if (copy.isYouthHire !== 'Y') {
+          copy.youthMonths = 0;
+        } else {
+          if (!copy.youthExclude) {
+            copy.youthMonths = totalMonthsForCalc;
+          } else {
+            const excVal = parseInt(copy.youthExclude);
+            const yearStart = yearForCalc * 10000 + 101;
+            const yearEnd = yearForCalc * 10000 + 1231;
+            if (excVal < yearStart) {
+              copy.youthMonths = 0;
+            } else if (excVal > yearEnd) {
+              copy.youthMonths = totalMonthsForCalc;
+            } else {
+              const wp = copy.workPeriod || '';
+              const startM = parseInt(wp.substring(0,2)) || 0;
+              const endM = parseInt(wp.substring(3,5)) || 0;
+              const excMonth = parseInt(copy.youthExclude.substring(4,6));
+              const effEnd = Math.min(endM, excMonth - 1);
+              copy.youthMonths = Math.max(0, effEnd - startM + 1);
+            }
+          }
+        }
+
+        copy.regularMonths = totalMonthsForCalc - copy.youthMonths;
+      }
+
+      const stKey = setKey + ':' + emp.code;
+      const stType = shortTimeEdits.hasOwnProperty(stKey) ? shortTimeEdits[stKey] : (copy.shortTimeType || '');
+      copy.shortTimeType = stType;
+      if (stType) {
+        const multiplier = parseFloat(stType);
+        copy.regularMonths = Math.floor(copy.regularMonths * multiplier * 100) / 100;
+        copy.youthMonths = Math.floor(copy.youthMonths * multiplier * 100) / 100;
+      }
+
+      return copy;
+    });
+  }
+  curProcessed  = applyYnEdits(curProcessed, 'cur', taxYear);
+  prevProcessed = applyYnEdits(prevProcessed, 'prev', prevYear);
+
+  // 제외사유 드롭다운 편집 반영
+  curProcessed = curProcessed.map(emp => {
+    const rKey = 'cur:' + emp.code;
+    if (reasonEdits[rKey] !== undefined) return { ...emp, reason: reasonEdits[rKey] };
+    return emp;
+  });
+  prevProcessed = prevProcessed.map(emp => {
+    const rKey = 'prev:' + emp.code;
+    if (reasonEdits[rKey] !== undefined) return { ...emp, reason: reasonEdits[rKey] };
+    return emp;
+  });
+
+  const curAgg  = calcAgg(curProcessed);
+  const prevAgg = calcAgg(prevProcessed);
+
+  // Show results
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('result-area').style.display = 'block';
+
+  spec_renderAggTable(curAgg, prevAgg, taxYear);
+
+  const curCount  = curProcessed.filter(e=>e.regular==='Y').length;
+  const prevCount = prevProcessed.filter(e=>e.regular==='Y').length;
+
+  document.getElementById('cur-badge').textContent  = `총 ${curProcessed.length}명 / 상시 ${curCount}명`;
+  document.getElementById('prev-badge').textContent = `총 ${prevProcessed.length}명 / 상시 ${prevCount}명`;
+
+  document.getElementById('cur-table-wrap').innerHTML  = spec_renderDetailTable(curProcessed,  'cur');
+  document.getElementById('prev-table-wrap').innerHTML = spec_renderDetailTable(prevProcessed, 'prev');
+
+  window._lastResult = { curProcessed, prevProcessed, curAgg, prevAgg, taxYear };
+  document.getElementById('btn-excel').disabled = false;
+
+  // localStorage에 저장 (backward compatibility)
+  localStorage.setItem('goyong_new_' + taxYear, JSON.stringify({
+    workerCount: curAgg.workerCount,
+    youthWorkerCount: curAgg.youthWorkerCount,
+    nonYouthWorkerCount: curAgg.nonYouthWorkerCount,
+    youthMetro: curAgg.youthMetro,
+    youthLocal: curAgg.youthLocal,
+    nonYouthMetro: curAgg.nonYouthMetro,
+    nonYouthLocal: curAgg.nonYouthLocal
+  }));
+  localStorage.setItem('goyong_new_' + prevYear, JSON.stringify({
+    workerCount: prevAgg.workerCount,
+    youthWorkerCount: prevAgg.youthWorkerCount,
+    nonYouthWorkerCount: prevAgg.nonYouthWorkerCount,
+    youthMetro: prevAgg.youthMetro,
+    youthLocal: prevAgg.youthLocal,
+    nonYouthMetro: prevAgg.nonYouthMetro,
+    nonYouthLocal: prevAgg.nonYouthLocal
+  }));
+
+  // Direct JS data flow: store in window.specData
+  if (!window.specData) window.specData = { old: {}, new: {} };
+  const curData = {
+    workerCount: curAgg.workerCount,
+    youthWorkerCount: curAgg.youthWorkerCount,
+    nonYouthWorkerCount: curAgg.nonYouthWorkerCount,
+    youthMetro: curAgg.youthMetro,
+    youthLocal: curAgg.youthLocal,
+    nonYouthMetro: curAgg.nonYouthMetro,
+    nonYouthLocal: curAgg.nonYouthLocal
+  };
+  const prevData = {
+    workerCount: prevAgg.workerCount,
+    youthWorkerCount: prevAgg.youthWorkerCount,
+    nonYouthWorkerCount: prevAgg.nonYouthWorkerCount,
+    youthMetro: prevAgg.youthMetro,
+    youthLocal: prevAgg.youthLocal,
+    nonYouthMetro: prevAgg.nonYouthMetro,
+    nonYouthLocal: prevAgg.nonYouthLocal
+  };
+  // old/new 양쪽에 저장 (계산기가 시작연도에 따라 old/new 키로 읽음)
+  window.specData['old'][taxYear] = curData;
+  window.specData['new'][taxYear] = curData;
+  window.specData['old'][prevYear] = prevData;
+  window.specData['new'][prevYear] = prevData;
+
+  // sessionStorage에 전체 상태 저장
+  spec_saveState();
+}
+
+function spec_saveState() {
+  try {
+    sessionStorage.setItem('goyong_state', JSON.stringify({
+      empData, overrides, ynEdits, shortTimeEdits, reasonEdits,
+      metroDepts: [...metroDepts], execPositions: [...execPositions],
+      allDepts: [...allDepts], allPositions: [...allPositions],
+      taxYear: document.getElementById('tax-year').value,
+      corpType: document.getElementById('spec-corp-type').value,
+      companyName: document.getElementById('company-name').value,
+    }));
+  } catch(e) { /* 용량 초과 시 무시 */ }
+}
+
+function spec_restoreState() {
+  try {
+    const raw = sessionStorage.getItem('goyong_state');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    empData = s.empData || { cur: null, prev: null };
+    overrides = s.overrides || {};
+    ynEdits = s.ynEdits || {};
+    shortTimeEdits = s.shortTimeEdits || {};
+    reasonEdits = s.reasonEdits || {};
+    metroDepts = new Set(s.metroDepts || []);
+    execPositions = new Set(s.execPositions || []);
+    allDepts = new Set(s.allDepts || []);
+    allPositions = new Set(s.allPositions || []);
+    if (s.taxYear) document.getElementById('tax-year').value = s.taxYear;
+    if (s.corpType) document.getElementById('spec-corp-type').value = s.corpType;
+    if (s.companyName) document.getElementById('company-name').value = s.companyName;
+    if (empData.cur) {
+      const el = document.getElementById('filename-cur');
+      el.textContent = '(복원됨)';
+      el.style.display = 'inline-block';
+      document.getElementById('drop-cur').classList.add('has-file');
+    }
+    if (empData.prev) {
+      const el = document.getElementById('filename-prev');
+      el.textContent = '(복원됨)';
+      el.style.display = 'inline-block';
+      document.getElementById('drop-prev').classList.add('has-file');
+    }
+    renderCheckboxes();
+    spec_calculate();
+    return true;
+  } catch(e) { return false; }
+}
+
+function toggleOverride(setKey, empCode, autoRegular) {
+  const key = setKey + ':' + empCode;
+  const cur = overrides[key];
+  if (cur === undefined) {
+    overrides[key] = autoRegular === 'Y' ? 'N' : 'Y';
+  } else if (cur !== autoRegular) {
+    delete overrides[key];
+  } else {
+    overrides[key] = cur === 'Y' ? 'N' : 'Y';
+  }
+  spec_calculate();
+}
+
+function toggleYN(setKey, empCode, field) {
+  const key = setKey + ':' + empCode + ':' + field;
+  const current = ynEdits[key];
+  if (current === undefined) {
+    const cell = document.getElementById('yn-' + setKey + '-' + empCode + '-' + field);
+    ynEdits[key] = (cell && cell.textContent === 'Y') ? 'N' : 'Y';
+  } else {
+    ynEdits[key] = current === 'Y' ? 'N' : 'Y';
+  }
+  spec_calculate();
+}
+
+function changeShortTimeType(setKey, empCode, value) {
+  const key = setKey + ':' + empCode;
+  if (value === '') {
+    delete shortTimeEdits[key];
+  } else {
+    shortTimeEdits[key] = value;
+  }
+  spec_calculate();
+}
+
+function changeReason(setKey, empCode, value) {
+  const key = setKey + ':' + empCode;
+  if (value === '') {
+    delete reasonEdits[key];
+    delete overrides[key];
+  } else {
+    reasonEdits[key] = value;
+    overrides[key] = 'N';
+  }
+  spec_calculate();
+}
+
+function spec_fmt(n, decimals=2) {
+  if (isNaN(n)) return '-';
+  const factor = Math.pow(10, decimals);
+  return (Math.floor(n * factor) / factor).toFixed(decimals);
+}
+
+function spec_renderAggTable(cur, prev, taxYear) {
+  const html = `
+    <table class="agg">
+      <thead>
+        <tr>
+          <th rowspan="2">구 분</th>
+          <th rowspan="2">①해당(직전) 과세연도의<br>상시근로자 근무개월수의 합계</th>
+          <th rowspan="2">②과세연도<br>개월수</th>
+          <th rowspan="2">③상시근로자수<br><span style="font-size:10px;font-weight:400;">(1인당 ÷② 후<br>0.01미만 버림의 합)</span></th>
+          <th colspan="6">④해당(직전) 과세연도의 청년등 상시근로자 근무개월수의 합계</th>
+          <th rowspan="2">⑪과세연도<br>개월수</th>
+          <th rowspan="2">⑫청년등상시<br>근로자수<br><span style="font-size:10px;font-weight:400;">(1인당 ÷⑪ 후<br>0.01미만 버림의 합)</span></th>
+          <th rowspan="2">⑬청년등외<br>상시근로자수<br>(=③-⑫)</th>
+        </tr>
+        <tr>
+          <th>⑤청년</th><th>⑥장애인</th><th>⑦고령자</th><th>⑧경력단절</th><th>⑨북한이탈</th><th>⑩합계</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>해당과세연도</strong></td>
+          <td>${spec_fmt(cur.totalMonths)}</td>
+          <td>${cur.months12}</td>
+          <td>${spec_fmt(cur.workerCount)}</td>
+          <td>${spec_fmt(cur.youthTotalMonths)}</td>
+          <td>${spec_fmt(cur.disabledMonths)}</td>
+          <td>${spec_fmt(cur.elderlyMonths)}</td>
+          <td>${spec_fmt(cur.careerMonths)}</td><td>${spec_fmt(cur.nkDefectorMonths)}</td>
+          <td>${spec_fmt(cur.youthTotalSum)}</td>
+          <td>${cur.months12}</td>
+          <td>${spec_fmt(cur.youthWorkerCount)}</td>
+          <td>${spec_fmt(cur.nonYouthWorkerCount)}</td>
+        </tr>
+        <tr>
+          <td><strong>직전과세연도</strong></td>
+          <td>${spec_fmt(prev.totalMonths)}</td>
+          <td>${prev.months12}</td>
+          <td>${spec_fmt(prev.workerCount)}</td>
+          <td>${spec_fmt(prev.youthTotalMonths)}</td>
+          <td>${spec_fmt(prev.disabledMonths)}</td>
+          <td>${spec_fmt(prev.elderlyMonths)}</td>
+          <td>${spec_fmt(prev.careerMonths)}</td><td>${spec_fmt(prev.nkDefectorMonths)}</td>
+          <td>${spec_fmt(prev.youthTotalSum)}</td>
+          <td>${prev.months12}</td>
+          <td>${spec_fmt(prev.youthWorkerCount)}</td>
+          <td>${spec_fmt(prev.nonYouthWorkerCount)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:14px;">
+      <div class="summary-grid">
+        <div class="summary-card highlight">
+          <div class="sc-label">당기 상시근로자수 (③)</div>
+          <div class="sc-val">${spec_fmt(cur.workerCount)}</div>
+          <div class="sc-sub">1인당 (개월÷12) 버림 합산</div>
+        </div>
+        <div class="summary-card green">
+          <div class="sc-label">당기 청년등 상시근로자수 (⑫)</div>
+          <div class="sc-val">${spec_fmt(cur.youthWorkerCount)}</div>
+          <div class="sc-sub">1인당 (개월÷12) 버림 합산</div>
+        </div>
+        <div class="summary-card highlight">
+          <div class="sc-label">전기 상시근로자수 (③)</div>
+          <div class="sc-val">${spec_fmt(prev.workerCount)}</div>
+          <div class="sc-sub">1인당 (개월÷12) 버림 합산</div>
+        </div>
+        <div class="summary-card green">
+          <div class="sc-label">전기 청년등 상시근로자수 (⑫)</div>
+          <div class="sc-val">${spec_fmt(prev.youthWorkerCount)}</div>
+          <div class="sc-sub">1인당 (개월÷12) 버림 합산</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('agg-table-wrap').innerHTML = html;
+}
+
+function spec_renderDetailTable(processed, setKey) {
+  if (!processed || processed.length === 0) {
+    return `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">
+      <div style="font-size:32px;margin-bottom:8px;">&#128194;</div>
+      <div>해당 과세연도 사원등록 파일이 업로드되지 않았습니다.</div>
+      <div style="font-size:11px;margin-top:4px;">파일을 업로드하면 자동으로 명세가 표시됩니다.</div>
+    </div>`;
+  }
+
+  const ynCell = (v, empCode, field) => {
+    const cls = v === 'Y' ? 'Y' : 'N';
+    const id = `yn-${setKey}-${empCode}-${field}`;
+    return `<td class="yn-toggle ${cls}" id="${id}" title="클릭하여 Y\u2194N 전환" onclick="toggleYN('${setKey}','${empCode}','${field}')">${v}</td>`;
+  };
+
+  const reasonSelect = (empCode, autoReason) => {
+    const key = setKey + ':' + empCode;
+    const cur = reasonEdits[key] !== undefined ? reasonEdits[key] : (autoReason || '');
+    return `<td class="reason"><select style="font-size:11px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;color:${cur ? 'var(--warn)' : 'inherit'};"
+      onchange="changeReason('${setKey}','${empCode}',this.value)">
+      <option value=""${cur === '' ? ' selected' : ''}></option>
+      <option value="ⓐ 근로계약1년미만"${cur === 'ⓐ 근로계약1년미만' ? ' selected' : ''}>ⓐ 근로계약1년미만</option>
+      <option value="ⓑ 단시간"${cur === 'ⓑ 단시간' ? ' selected' : ''}>ⓑ 단시간</option>
+      <option value="ⓒ 임원"${cur === 'ⓒ 임원' ? ' selected' : ''}>ⓒ 임원</option>
+      <option value="ⓓ 최대주주·친족"${cur === 'ⓓ 최대주주·친족' ? ' selected' : ''}>ⓓ 최대주주·친족</option>
+      <option value="ⓔ 원천징수미확인"${cur === 'ⓔ 원천징수미확인' ? ' selected' : ''}>ⓔ 원천징수미확인</option>
+      <option value="ⓕ 기타"${cur === 'ⓕ 기타' ? ' selected' : ''}>ⓕ 기타</option>
+    </select></td>`;
+  };
+
+  const shortTimeSelect = (empCode) => {
+    const key = setKey + ':' + empCode;
+    const cur = shortTimeEdits[key] || '';
+    return `<select style="font-size:11px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;"
+      onchange="changeShortTimeType('${setKey}','${empCode}',this.value)">
+      <option value=""${cur === '' ? ' selected' : ''}></option>
+      <option value="0.5"${cur === '0.5' ? ' selected' : ''}>0.5</option>
+      <option value="0.75"${cur === '0.75' ? ' selected' : ''}>0.75</option>
+    </select>`;
+  };
+
+  const rows = processed.map(emp => {
+    const isOverride  = emp._override !== undefined;
+    const autoRegular = emp._autoRegular || emp.regular;
+    const excluded    = emp.regular === 'N';
+    const isYouth     = !excluded && (emp.isYouthHire === 'Y');
+
+    let rowClass = '';
+    if (isOverride) {
+      rowClass = emp._override === 'Y' ? 'override-include' : 'override-exclude';
+    } else {
+      rowClass = excluded ? 'excluded' : (isYouth ? 'youth' : '');
+    }
+
+    let toggleClass, toggleLabel, toggleTitle;
+    if (!isOverride) {
+      if (autoRegular === 'Y') {
+        toggleClass = 'state-auto-y';
+        toggleLabel = '\u25CF 포함';
+        toggleTitle = '클릭하면 수동 제외로 전환';
+      } else {
+        toggleClass = 'state-auto-n';
+        toggleLabel = '\u25CB 제외';
+        toggleTitle = '클릭하면 수동 포함으로 전환';
+      }
+    } else {
+      if (emp._override === 'Y') {
+        toggleClass = 'state-force-y';
+        toggleLabel = '\u2605 수동포함';
+        toggleTitle = '클릭하면 자동 판정으로 복원';
+      } else {
+        toggleClass = 'state-force-n';
+        toggleLabel = '\u2715 수동제외';
+        toggleTitle = '클릭하면 자동 판정으로 복원';
+      }
+    }
+
+    const toggleBtn = `<div class="toggle-wrap">
+      <span class="toggle-btn ${toggleClass}"
+        title="${toggleTitle}"
+        onclick="toggleOverride('${setKey}','${emp.code}','${autoRegular}')">
+        <span class="dot"></span>${toggleLabel}
+      </span>
+    </div>`;
+
+    const ec = emp.code;
+    const elderlyYN = emp.elderlyAtHire ? 'Y' : 'N';
+    const career   = emp._career || 'N';
+    const nkDef    = emp._nkDefector || 'N';
+    const regConv  = emp._regularConvert || 'N';
+    const childRet = emp._childcareReturn || 'N';
+
+    return `<tr class="${rowClass}">
+      <td>${toggleBtn}</td>
+      <td class="months">${emp.birthStr || ''}</td>
+      <td class="name-col">${emp.name}${isOverride ? ' <span style="font-size:9px;opacity:.6">(수동)</span>' : ''}</td>
+      ${ynCell(emp.regular, ec, 'regular')}
+      ${reasonSelect(ec, emp.reason)}
+      <td>${shortTimeSelect(ec)}</td>
+      ${ynCell(emp.domestic, ec, 'domestic')}
+      ${ynCell(emp.metro, ec, 'metro')}
+      <td class="months">${emp.hireStr}${emp.resignStr ? `<br><span style="font-size:9px;color:#e74c3c;opacity:.7;">~${emp.resignStr}</span>` : ''}</td>
+      <td>${emp.workPeriod}</td>
+      <td class="months">${emp.regularMonths % 1 === 0 ? (emp.regularMonths || 0) : spec_fmt(emp.regularMonths)}</td>
+      <td class="months">${emp.youthMonths % 1 === 0 ? (emp.youthMonths || 0) : spec_fmt(emp.youthMonths)}</td>
+      ${ynCell(emp.isYouthYear, ec, 'isYouthYear')}
+      ${ynCell(emp.isYouthHire, ec, 'isYouthHire')}
+      <td class="months">${emp.youthExclude || ''}</td>
+      ${ynCell(emp.isDisabled, ec, 'isDisabled')}
+      ${ynCell(elderlyYN, ec, 'elderlyAtHire')}
+      ${ynCell(career, ec, 'career')}
+      ${ynCell(nkDef, ec, 'nkDefector')}
+      ${ynCell(regConv, ec, 'regularConvert')}
+      ${ynCell(childRet, ec, 'childcareReturn')}
+    </tr>`;
+  }).join('');
+
+  return `<table class="spec">
+    <thead>
+      <tr>
+        <th rowspan="2" class="no-print" style="background:#f8f4ff;color:#7040c0;min-width:90px;">수동\n조정</th>
+        <th rowspan="2">\u246D생년월일\n(YYYYMMDD)</th>
+        <th rowspan="2">\u246E성명</th>
+        <th rowspan="2">\u246F상시\n근로자\n(N/Y)</th>
+        <th rowspan="2">\u2470상시근로자\n제외사유</th>
+        <th rowspan="2">\u2471단시간\n근로자유형\n(0.5/0.75)</th>
+        <th rowspan="2">\u2472내국인\n(N/Y)</th>
+        <th rowspan="2">\u2473수도권\n근무지\n(N/Y)</th>
+        <th rowspan="2">\u3260근로계약\n체결일\u00B7퇴사일\n(YYYYMMDD)</th>
+        <th rowspan="2">\u3261근로기간\n(MM-MM)</th>
+        <th rowspan="2">\u3262상시근로자\n근무개월수</th>
+        <th rowspan="2">\u3263청년등\n근무개월수</th>
+        <th colspan="3" class="sub-youth">청 년</th>
+        <th rowspan="2">\u3260장애인\n(N/Y)</th>
+        <th rowspan="2">\u3260고령자\n(N/Y)</th>
+        <th rowspan="2">\u3260경력단절\n근로자(N/Y)</th>
+        <th rowspan="2">\u3260북한이탈\n주민(N/Y)</th>
+        <th rowspan="2">\u3260정규직\n전환자(N/Y)</th>
+        <th rowspan="2">\u3260육아휴직\n복귀자(N/Y)</th>
+      </tr>
+      <tr>
+        <th class="sub-youth">\u3264과세연도기준\n청년여부(N/Y)</th>
+        <th class="sub-youth">\u3265근로계약체결일기준\n청년여부(N/Y)</th>
+        <th class="sub-youth">\u3266청년제외시점\n(YYYYMMDD)</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TAB SWITCHING (명세서 내부 탭)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function spec_switchTab(id, btn) {
+  document.querySelectorAll('#tab-spec .spec-tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#tab-spec .tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EXCEL DOWNLOAD (명세서)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function spec_downloadExcel() {
+  if (!window._lastResult) return;
+  const { curProcessed, prevProcessed, curAgg, prevAgg, taxYear } = window._lastResult;
+  const companyName = document.getElementById('company-name').value || '';
+  const bizNo       = document.getElementById('biz-no').value || '';
+  const corpType    = document.getElementById('spec-corp-type').value || '중소';
+
+  const btn = document.getElementById('btn-excel');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="dl-icon">\u23F3</span> 생성 중...';
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('상시근로자 명세서', {
+      views:[{showGridLines:false}],
+      pageSetup: {
+        orientation: 'landscape',
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        paperSize: 9,
+      },
+      margins: {
+        left: 0.1, right: 0.1,
+        top: 0.1, bottom: 0.1,
+        header: 0, footer: 0
+      }
+    });
+
+    const GRAY  = 'FFD9D9D9';
+    const WHITE = 'FFFFFFFF';
+    const BLUE  = 'FFD6E8F5';
+    const EXCL  = 'FFFFF2F2';
+    const YOUTH = 'FFF0FFF5';
+    const thin  = {style:'thin', color:{argb:'FFB0B0B0'}};
+    const AB    = {top:thin, left:thin, bottom:thin, right:thin};
+
+    ws.pageSetup = Object.assign(ws.pageSetup || {}, {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+    });
+    ws.pageSetup.margins = {
+      left: 0.1, right: 0.1,
+      top: 0.1, bottom: 0.1,
+      header: 0, footer: 0
+    };
+
+    [12, 9, 7.5, 9, 7, 6.5, 7, 12, 9.5, 7.5, 7.5, 7, 8.5, 11, 7, 7, 7.5, 7.5, 7.5, 7.5]
+      .forEach((w,i) => ws.getColumn(i+1).width = w);
+
+    function SC(r, c, val, opts) {
+      const {bold=false, bg=WHITE, sz=9, halign='center', color=null} = opts||{};
+      const cell = ws.getCell(r, c);
+      cell.value = val;
+      cell.font  = Object.assign({name:'맑은 고딕', size:sz, bold},
+                    color ? {color:{argb:color}} : {});
+      cell.fill  = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+      cell.alignment = {horizontal:halign, vertical:'middle', wrapText:true};
+      cell.border = AB;
+    }
+    function MG(r1,c1,r2,c2, val, opts) {
+      SC(r1, c1, val, opts);
+      if (r1!==r2 || c1!==c2) ws.mergeCells(r1, c1, r2, c2);
+    }
+    function FC(r, c, formula, numFmt) {
+      const cell = ws.getCell(r, c);
+      cell.value = {formula};
+      cell.border = AB;
+      cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:WHITE}};
+      cell.alignment = {horizontal:'center', vertical:'middle'};
+      cell.font = {name:'맑은 고딕', size:9};
+      if (numFmt) cell.numFmt = numFmt;
+    }
+    function FMG(r, c1, c2, formula, numFmt) {
+      FC(r, c1, formula, numFmt);
+      if (c1!==c2) ws.mergeCells(r, c1, r, c2);
+    }
+
+    ws.getRow(1).height  = 32;
+    ws.getRow(2).height  = 18;
+    ws.getRow(3).height  = 22;
+    ws.getRow(4).height  = 22;
+    ws.getRow(5).height  = 22;
+    ws.getRow(6).height  = 58;
+    ws.getRow(7).height  = 38;
+    ws.getRow(8).height  = 16;
+    ws.getRow(9).height  = 22;
+    ws.getRow(10).height = 22;
+    ws.getRow(11).height = 22;
+
+    MG(1,1,1,20, '통합고용세액공제 상시근로자 명세서', {bold:true, sz:14, bg:WHITE});
+    MG(2,1,2,20, '\u25A0 조세특례제한법시행규칙 [별지 제10호의10서식] <개정 2026. 3. 00.>  (앞쪽)',
+      {bg:WHITE, sz:8, halign:'right'});
+    MG(3,1,3,3,   '과세연도',       {bg:GRAY, bold:true});
+    MG(3,4,3,9,   taxYear+'.01.01 ~ '+taxYear+'.12.31');
+    MG(3,10,3,13, '법인종류별 구분', {bg:GRAY, bold:true});
+    MG(3,14,3,20, corpType);
+    MG(4,1,4,3,   '상호 또는 법인명', {bg:GRAY, bold:true});
+    MG(4,4,4,9,   companyName);
+    MG(4,10,4,13, '사업자등록번호',   {bg:GRAY, bold:true});
+    MG(4,14,4,20, bizNo);
+    MG(5,1,5,20,  '1. 상시근로자수 계산', {bg:GRAY, bold:true, halign:'left'});
+
+    MG(6,1,8,2,   '구 분', {bg:GRAY, bold:true});
+    MG(6,3,8,3,   '\u2460해당(직전)\n과세연도의\n상시근로자\n근무개월수의\n합계', {bg:GRAY, sz:8});
+    MG(6,4,8,4,   '\u2461\n과세연도\n개월수', {bg:GRAY, sz:8});
+    MG(6,5,8,5,   '\u2462상시\n근로자수\n(1인당\u00F7\u2461\n버림의 합)', {bg:GRAY, sz:8});
+    MG(6,6,6,11,  '\u2463해당(직전) 과세연도의 청년등 상시근로자 근무개월수의 합계', {bg:GRAY, bold:true, sz:8});
+    MG(7,6,8,6,   '\u2464\n청년', {bg:GRAY, sz:8});
+    MG(7,7,8,7,   '\u2465\n장애인', {bg:GRAY, sz:8});
+    MG(7,8,8,8,   '\u2466\n고령자', {bg:GRAY, sz:8});
+    MG(7,9,8,9,   '\u2467\n경력단절\n근로자', {bg:GRAY, sz:8});
+    MG(7,10,8,10, '\u2468\n북한이탈\n주민', {bg:GRAY, sz:8});
+    MG(7,11,8,11, '\u2469\n합계', {bg:GRAY, sz:8});
+    MG(6,12,8,12, '\u246A\n과세연도\n개월수', {bg:GRAY, sz:8});
+    MG(6,13,8,15, '\u246B\n청년등상시\n근로자수\n(1인당\u00F7\u246A\n버림의 합)', {bg:GRAY, sz:8});
+    MG(6,16,8,20, '\u246C\n청년등외\n상시근로자수\n(=\u2462-\u246B)', {bg:GRAY, sz:8});
+
+    const FIXED_ROWS = 70;
+    const CS  = 14;
+    const CE  = CS + FIXED_ROWS - 1;
+    const PSC = CE + 2;
+    const PH1 = PSC + 1;
+    const PH2 = PH1 + 1;
+    const PS  = PH2 + 1;
+    const PE  = PS  + FIXED_ROWS - 1;
+    const SR  = PE  + 2;
+
+    MG(9,1,9,2,   '해당과세연도', {bold:true});
+    FC(9,3,  'SUM(J'+CS+':J'+CE+')+SUM(K'+CS+':K'+CE+')', '0');
+    FC(9,5,  'SUMPRODUCT(TRUNC((J'+CS+':J'+CE+'+K'+CS+':K'+CE+')/12,2))', '0.00');
+    SC(9,4,  12);
+    FC(9,6, 'SUMPRODUCT((C'+CS+':C'+CE+'="Y")*(O'+CS+':O'+CE+'<>"Y")*(P'+CS+':P'+CE+'<>"Y")*(Q'+CS+':Q'+CE+'<>"Y")*(R'+CS+':R'+CE+'<>"Y")*(S'+CS+':S'+CE+'<>"Y")*(T'+CS+':T'+CE+'<>"Y")*K'+CS+':K'+CE+')', '0');
+    FC(9,7, 'SUMPRODUCT((C'+CS+':C'+CE+'="Y")*(O'+CS+':O'+CE+'="Y")*(J'+CS+':J'+CE+'+K'+CS+':K'+CE+'))', '0');
+    FC(9,8, 'SUMPRODUCT((C'+CS+':C'+CE+'="Y")*(P'+CS+':P'+CE+'="Y")*(J'+CS+':J'+CE+'+K'+CS+':K'+CE+'))', '0');
+    FC(9,9, 'SUMPRODUCT((C'+CS+':C'+CE+'="Y")*(Q'+CS+':Q'+CE+'="Y")*(J'+CS+':J'+CE+'+K'+CS+':K'+CE+'))', '0');
+    FC(9,10, 'SUMPRODUCT((C'+CS+':C'+CE+'="Y")*(R'+CS+':R'+CE+'="Y")*(J'+CS+':J'+CE+'+K'+CS+':K'+CE+'))', '0');
+    FC(9,11, 'SUM(F9:J9)', '0');
+    SC(9,12, 12);
+    FC(9,13, 'SUMPRODUCT(TRUNC(K'+CS+':K'+CE+'/12,2))', '0.00');
+    if (13!==15) ws.mergeCells(9, 13, 9, 15);
+    FMG(9,16,20,  'E9-M9');
+
+    MG(10,1,10,2, '직전과세연도', {bold:true});
+    FC(10,3,  'SUM(J'+PS+':J'+PE+')+SUM(K'+PS+':K'+PE+')', '0');
+    FC(10,5,  'SUMPRODUCT(TRUNC((J'+PS+':J'+PE+'+K'+PS+':K'+PE+')/12,2))', '0.00');
+    SC(10,4,  12);
+    FC(10,6, 'SUMPRODUCT((C'+PS+':C'+PE+'="Y")*(O'+PS+':O'+PE+'<>"Y")*(P'+PS+':P'+PE+'<>"Y")*(Q'+PS+':Q'+PE+'<>"Y")*(R'+PS+':R'+PE+'<>"Y")*(S'+PS+':S'+PE+'<>"Y")*(T'+PS+':T'+PE+'<>"Y")*K'+PS+':K'+PE+')', '0');
+    FC(10,7, 'SUMPRODUCT((C'+PS+':C'+PE+'="Y")*(O'+PS+':O'+PE+'="Y")*(J'+PS+':J'+PE+'+K'+PS+':K'+PE+'))', '0');
+    FC(10,8, 'SUMPRODUCT((C'+PS+':C'+PE+'="Y")*(P'+PS+':P'+PE+'="Y")*(J'+PS+':J'+PE+'+K'+PS+':K'+PE+'))', '0');
+    FC(10,9, 'SUMPRODUCT((C'+PS+':C'+PE+'="Y")*(Q'+PS+':Q'+PE+'="Y")*(J'+PS+':J'+PE+'+K'+PS+':K'+PE+'))', '0');
+    FC(10,10, 'SUMPRODUCT((C'+PS+':C'+PE+'="Y")*(R'+PS+':R'+PE+'="Y")*(J'+PS+':J'+PE+'+K'+PS+':K'+PE+'))', '0');
+    FC(10,11, 'SUM(F10:J10)', '0');
+    SC(10,12, 12);
+    FC(10,13, 'SUMPRODUCT(TRUNC(K'+PS+':K'+PE+'/12,2))', '0.00');
+    if (13!==15) ws.mergeCells(10, 13, 10, 15);
+    FMG(10,16,20, 'E10-M10');
+
+    function writeSpecHeader(h1, h2) {
+      ws.getRow(h1).height = 58;
+      ws.getRow(h2).height = 58;
+      [[1,'\u246D\n생년월일\n(YYYYMMDD)'],[2,'\u246E\n성명'],[3,'\u246F\n상시\n근로자\n(N/Y)'],
+       [4,'\u2470\n상시근로자\n제외사유'],[5,'\u2471\n단시간\n근로자유형\n(0.5/0.75)'],
+       [6,'\u2472\n내국인\n(N/Y)'],[7,'\u2473\n수도권\n근무지\n(N/Y)'],
+       [8,'\u3260\n근로계약\n체결일\n(YYYYMMDD)'],[9,'\u3261\n근로기간\n(MM-MM)'],
+       [10,'\u3262\n상시근로자\n근무\n개월수'],[11,'\u3263\n청년등\n근무\n개월수'],
+       [15,'\u3264\n장애인\n(N/Y)'],[16,'\u3264\n고령자\n(N/Y)'],
+       [17,'\u3264\n경력단절\n근로자\n(N/Y)'],[18,'\u3264\n북한이탈\n주민\n(N/Y)'],
+       [19,'\u3264\n정규직\n전환자\n(N/Y)'],[20,'\u3264\n육아휴직\n복귀자\n(N/Y)'],
+      ].forEach(function(x){ MG(h1,x[0],h2,x[0], x[1], {bg:GRAY, sz:8}); });
+      MG(h1,12,h1,14, '청년', {bg:BLUE, bold:true});
+      SC(h2,12, '\u3264\n과세연도\n기준\n청년여부',      {bg:BLUE, sz:8});
+      SC(h2,13, '\u3265\n계약체결일\n기준\n청년여부', {bg:BLUE, sz:8});
+      SC(h2,14, '\u3266\n청년제외\n시점\n(YYYYMMDD)',          {bg:BLUE, sz:8});
+    }
+
+    function writeDataRows(employees, startRow, taxYearForFormula) {
+      var yearStart = taxYearForFormula + '0101';
+      var yearEnd   = taxYearForFormula + '1231';
+      var ynCols = [6,7,12,13,15,16,17,18,19,20];
+      var ynValidation = {
+        type: 'list', allowBlank: true, formulae: ['"Y,N"'],
+        showErrorMessage: true, errorTitle: '입력 오류', error: 'Y 또는 N만 입력할 수 있습니다.',
+        showInputMessage: true, promptTitle: '선택', prompt: 'Y 또는 N을 선택하세요'
+      };
+      var reasonValidation = {
+        type: 'list', allowBlank: true,
+        formulae: ['"ⓐ 근로계약1년미만,ⓑ 단시간,ⓒ 임원,ⓓ 최대주주·친족,ⓔ 원천징수미확인,ⓕ 기타"'],
+        showErrorMessage: true, errorTitle: '입력 오류', error: 'ⓐ~ⓕ 중 선택하세요.',
+        showInputMessage: true, promptTitle: '제외사유', prompt: 'ⓐ근로계약1년미만 ⓑ단시간 ⓒ임원 ⓓ최대주주·친족 ⓔ원천징수미확인 ⓕ기타'
+      };
+      var shortTimeValidation = {
+        type: 'list', allowBlank: true, formulae: ['"0.5,0.75"'],
+        showErrorMessage: true, errorTitle: '입력 오류', error: '0.5 또는 0.75만 입력할 수 있습니다.',
+        showInputMessage: true, promptTitle: '단시간근로자유형', prompt: '0.5 또는 0.75를 선택하세요'
+      };
+
+      employees.forEach(function(emp, idx) {
+        var r  = startRow + idx;
+        ws.getRow(r).height = 18;
+        var excluded = emp.regular === 'N';
+        var isYouth  = !excluded && emp.isYouthHire === 'Y';
+        var bg = excluded ? EXCL : (isYouth ? YOUTH : WHITE);
+        var vals = [
+          emp.birthStr||'', emp.name, emp.regular, emp.reason||'', emp.shortTimeType||'',
+          emp.domestic, emp.metro, emp.hireStr||'', emp.workPeriod||'',
+          null, null,
+          emp.isYouthYear, emp.isYouthHire, emp.youthExclude||'',
+          emp.isDisabled, emp.elderlyAtHire?'Y':'N',
+          emp._career||'N', emp._nkDefector||'N', emp._regularConvert||'N', emp._childcareReturn||'N',
+        ];
+        vals.forEach(function(v, ci) {
+          var c = ci + 1;
+          if (c === 3) return;
+          if (c === 10 || c === 11) return;
+          if (c === 14) return;
+          var color = null;
+          if (v === 'Y') color = 'FF0E7C61';
+          if (v === 'N' && ynCols.indexOf(c)>=0) color = 'FFCCCCCC';
+          if (emp.reason && c === 4) color = 'FFC0392B';
+          SC(r, c, v, {bg:bg, bold:v==='Y', color:color, halign:c===2?'left':'center'});
+          if (ynCols.indexOf(c) >= 0) ws.getCell(r, c).dataValidation = ynValidation;
+          if (c === 4) ws.getCell(r, c).dataValidation = reasonValidation;
+          if (c === 5) ws.getCell(r, c).dataValidation = shortTimeValidation;
+        });
+
+        FC(r, 3, 'IF(D'+r+'="","Y","N")', null);
+        var cellC = ws.getCell(r, 3);
+        cellC.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+        cellC.alignment = {horizontal:'center', vertical:'middle'};
+        cellC.font = {name:'Noto Sans KR', size:9, bold:true,
+          color:{argb: emp.regular==='Y' ? 'FF0E7C61' : 'FFCCCCCC'}};
+
+        var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
+
+        var age35F = '(LEFT(A'+r+',4)+35)*10000+VALUE(RIGHT(A'+r+',4))';
+        FC(r, 11,
+          'IF(C'+r+'<>"Y",0,' +
+            'IF(OR(O'+r+'="Y",P'+r+'="Y",Q'+r+'="Y",R'+r+'="Y",S'+r+'="Y",T'+r+'="Y"),'+totalF+',' +
+              'IF(IFERROR(VALUE(H'+r+'),0)>=20250101,' +
+                'IF(M'+r+'<>"Y",0,' +
+                  'IF(N'+r+'="",'+totalF+',' +
+                    'IF(IFERROR(VALUE(N'+r+'),0)<'+yearStart+',0,' +
+                      'IF(VALUE(N'+r+')>'+yearEnd+','+totalF+',' +
+                        'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(N'+r+',5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                      ')' +
+                    ')' +
+                  ')' +
+                ')' +
+              ',' +
+                'IF(A'+r+'="",0,' +
+                  'IF('+age35F+'<='+yearStart+',0,' +
+                    'IF('+age35F+'>'+yearEnd+','+totalF+',' +
+                      'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age35F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                    ')' +
+                  ')' +
+                ')' +
+              ')' +
+            ')' +
+          ')',
+          '0');
+        ws.getCell(r, 11).fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+
+        FC(r, 10, totalF+'-K'+r, '0');
+        ws.getCell(r, 10).fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+
+        var keepFormula = 'IF('+taxYearForFormula+'=2025,IF($N$3="대기업",2,3),IF($N$3="대기업",3,4))';
+        var age35Num = '(LEFT(A'+r+',4)+35)*10000+VALUE(RIGHT(A'+r+',4))';
+        var postAmendF =
+          'IF(OR(M'+r+'<>"Y",A'+r+'="",H'+r+'=""),"",' +
+            'TEXT(MAX(' +
+              age35Num+',' +
+              '(LEFT(H'+r+',4)+'+keepFormula+')*10000+VALUE(RIGHT(H'+r+',4))' +
+            '),"00000000"))';
+        var preAmendF =
+          'IF(OR(A'+r+'="",'+age35Num+'<'+taxYearForFormula+'*10000+101),"",TEXT('+age35Num+',"00000000"))';
+        var youthExclFormula =
+          'IF(A'+r+'="","",IF(IFERROR(VALUE(H'+r+'),0)>=20250101,' +
+            postAmendF+',' +
+            preAmendF+'))';
+        FC(r, 14, youthExclFormula);
+        ws.getCell(r, 14).fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
+      });
+
+      var endRow = startRow + FIXED_ROWS - 1;
+      for (var r = startRow + employees.length; r <= endRow; r++) {
+        ws.getRow(r).height = 18;
+        for (var c = 1; c <= 20; c++) {
+          var cell = ws.getCell(r, c);
+          cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
+          cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+          cell.font = {name:'맑은 고딕', size:9};
+          if (ynCols.indexOf(c) >= 0) cell.dataValidation = ynValidation;
+          if (c === 4) cell.dataValidation = reasonValidation;
+          if (c === 5) cell.dataValidation = shortTimeValidation;
+        }
+        var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
+        var age35F = '(LEFT(A'+r+',4)+35)*10000+VALUE(RIGHT(A'+r+',4))';
+        FC(r, 11,
+          'IF(C'+r+'<>"Y",0,' +
+            'IF(OR(O'+r+'="Y",P'+r+'="Y",Q'+r+'="Y",R'+r+'="Y",S'+r+'="Y",T'+r+'="Y"),'+totalF+',' +
+              'IF(IFERROR(VALUE(H'+r+'),0)>=20250101,' +
+                'IF(M'+r+'<>"Y",0,' +
+                  'IF(N'+r+'="",'+totalF+',' +
+                    'IF(IFERROR(VALUE(N'+r+'),0)<'+yearStart+',0,' +
+                      'IF(VALUE(N'+r+')>'+yearEnd+','+totalF+',' +
+                        'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(N'+r+',5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                      ')' +
+                    ')' +
+                  ')' +
+                ')' +
+              ',' +
+                'IF(A'+r+'="",0,' +
+                  'IF('+age35F+'<='+yearStart+',0,' +
+                    'IF('+age35F+'>'+yearEnd+','+totalF+',' +
+                      'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age35F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                    ')' +
+                  ')' +
+                ')' +
+              ')' +
+            ')' +
+          ')',
+          '0');
+        FC(r, 10, totalF+'-K'+r, '0');
+        var keepFormula2 = 'IF('+taxYearForFormula+'=2025,IF($N$3="대기업",2,3),IF($N$3="대기업",3,4))';
+        var age35Num2 = '(LEFT(A'+r+',4)+35)*10000+VALUE(RIGHT(A'+r+',4))';
+        var postAmendF2 =
+          'IF(OR(M'+r+'<>"Y",A'+r+'="",H'+r+'=""),"",' +
+            'TEXT(MAX(' +
+              age35Num2+',' +
+              '(LEFT(H'+r+',4)+'+keepFormula2+')*10000+VALUE(RIGHT(H'+r+',4))' +
+            '),"00000000"))';
+        var preAmendF2 =
+          'IF(OR(A'+r+'="",'+age35Num2+'<'+taxYearForFormula+'*10000+101),"",TEXT('+age35Num2+',"00000000"))';
+        var youthExclFormula2 =
+          'IF(A'+r+'="","",IF(IFERROR(VALUE(H'+r+'),0)>=20250101,' +
+            postAmendF2+',' +
+            preAmendF2+'))';
+        FC(r, 14, youthExclFormula2);
+      }
+    }
+
+    MG(11,1,11,20, '2. 해당과세연도 상시근로자별 명세', {bg:GRAY, bold:true, halign:'left'});
+    writeSpecHeader(12, 13);
+    writeDataRows(curProcessed, CS, String(taxYear));
+
+    ws.getRow(PSC).height = 22;
+    MG(PSC,1,PSC,20, '3. 직전과세연도 상시근로자별 명세', {bg:GRAY, bold:true, halign:'left'});
+    writeSpecHeader(PH1, PH2);
+    writeDataRows(prevProcessed, PS, String(taxYear - 1));
+
+    ws.getRow(SR).height   = 22;
+    ws.getRow(SR+1).height = 20;
+    ws.getRow(SR+2).height = 20;
+    MG(SR,  1,SR,  20, '\u300C조세특례제한법\u300D시행령 제26조의8제11항에 따라 위와 같이 통합고용세액공제 상시근로자 명세서를 제출합니다.',
+      {bg:WHITE, halign:'left', sz:9});
+    MG(SR+1,1,SR+1,20, '                                                    년          월          일',
+      {bg:WHITE, halign:'left', sz:9});
+    MG(SR+2,1,SR+2,20, '신 청 인     '+companyName+'                    ( 서명 또는 인 )',
+      {bg:WHITE, halign:'left', sz:9});
+
+    var buf  = await wb.xlsx.writeBuffer();
+    var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    saveAs(blob, '통합고용세액공제_상시근로자명세서_'+taxYear+'.xlsx');
+
+  } catch(e) {
+    console.error(e);
+    alert('엑셀 생성 중 오류가 발생했습니다.\n' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="dl-icon">\u2B07</span> 엑셀 다운로드';
+  }
+}
+
+// 페이지 로드 시 sessionStorage에서 상태 복원
+spec_restoreState();
+</script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- 계산기 JAVASCRIPT                              -->
+<!-- ══════════════════════════════════════════════ -->
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 공제 단가 (만원)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const RATES = {
+  '중소': { youth: { metro: 1450, local: 1550 }, normal: { metro: 850, local: 950 }, years: 3 },
+  '중견': { youth: { metro: 800, local: 800 }, normal: { metro: 450, local: 450 }, years: 3 },
+  '대기업': { youth: { metro: 400, local: 400 }, normal: { metro: 0, local: 0 }, years: 2 }
+};
+
+let calc_saved = {};
+let calc_axisFlipped = true;
+
+function calc_fmt(n) { return Math.floor(n).toLocaleString('ko-KR'); }
+function calc_fmtD(n) { return Number.isInteger(n) ? n.toString() : n.toFixed(2); }
+function calc_rp2(n) { return Math.round(n * 100) / 100; }
+function calc_truncW(n) { return Math.floor(calc_rp2(n) * 100) / 100; }
+function calc_truncAmt(n) { return Math.floor(n); }
+function calc_getCorp() { return document.getElementById('calc-corp-type').value; }
+function calc_getFrom() { return +document.getElementById('year-from').value; }
+function calc_getTo() { return +document.getElementById('year-to').value; }
+
+function calc_getW(startY, y) {
+  const g = id => { const el = document.getElementById(id); return el ? (parseFloat(el.value) || 0) : 0; };
+  const totEl = document.getElementById('w'+startY+'-'+y+'-tot');
+  const totVal = totEl && totEl.value !== '' ? parseFloat(totEl.value) : null;
+  return { ym: g('w'+startY+'-'+y+'-ym'), yl: g('w'+startY+'-'+y+'-yl'), nm: g('w'+startY+'-'+y+'-nm'), nl: g('w'+startY+'-'+y+'-nl'), tot: totVal };
+}
+function calc_totalW(w) { return w.tot !== null && w.tot !== undefined ? w.tot : calc_rp2(w.ym + w.yl + w.nm + w.nl); }
+function calc_updateTotPlaceholder(startY, y) {
+  const el = document.getElementById('w'+startY+'-'+y+'-tot');
+  if (!el || el.value !== '') return;
+  const g = id => { const e = document.getElementById(id); return e ? (parseFloat(e.value) || 0) : 0; };
+  el.placeholder = (g('w'+startY+'-'+y+'-ym') + g('w'+startY+'-'+y+'-yl') + g('w'+startY+'-'+y+'-nm') + g('w'+startY+'-'+y+'-nl')).toFixed(2);
+}
+function calc_youthW(w) { return calc_rp2(w.ym + w.yl); }
+function calc_diffW(a, b) { return { ym: calc_rp2(a.ym-b.ym), yl: calc_rp2(a.yl-b.yl), nm: calc_rp2(a.nm-b.nm), nl: calc_rp2(a.nl-b.nl) }; }
+function calc_maxZ(w) { return { ym: Math.max(0,w.ym), yl: Math.max(0,w.yl), nm: Math.max(0,w.nm), nl: Math.max(0,w.nl) }; }
+
+// Make these available globally for inline oninput handlers
+window.updateTotPlaceholder = calc_updateTotPlaceholder;
+window.recalcAll = function() { calc_recalcAll(); };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 당기공제
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_calcDanggi(corp, diff) {
+  const r = RATES[corp];
+  const metroDiff = diff.ym + diff.nm;
+  const localDiff = diff.yl + diff.nl;
+  const metroCap = Math.max(0, metroDiff);
+  const localCap = Math.max(0, localDiff);
+  const rawYm = Math.max(0, diff.ym), rawNm = Math.max(0, diff.nm);
+  const rawYl = Math.max(0, diff.yl), rawNl = Math.max(0, diff.nl);
+  const capYm = Math.min(rawYm, metroCap);
+  const capNm = Math.min(rawNm, metroCap - capYm);
+  const capYl = Math.min(rawYl, localCap);
+  const capNl = Math.min(rawNl, localCap - capYl);
+  const inc = { ym: calc_truncW(capYm), yl: calc_truncW(capYl), nm: calc_truncW(capNm), nl: calc_truncW(capNl) };
+  const amt = { ym: calc_truncAmt(inc.ym*r.youth.metro), yl: calc_truncAmt(inc.yl*r.youth.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
+  return { inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 추가공제
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi) {
+  const r = RATES[corp];
+  const kept = calc_maxZ(calc_diffW(wCheck, wPrev));
+  const youthDec = wDanggi && (calc_youthW(wCheck) < calc_youthW(wDanggi));
+  let inc, amt;
+  if (youthDec) {
+    const dTotal = calc_rp2(danggiInc.ym + danggiInc.yl + danggiInc.nm + danggiInc.nl);
+    const totalKept = Math.max(0, calc_rp2(calc_totalW(wCheck) - calc_totalW(wPrev)));
+    const maintained = Math.min(dTotal, totalKept);
+    const scale = dTotal > 0 ? maintained / dTotal : 0;
+    inc = { ym: calc_truncW(danggiInc.ym*scale), yl: calc_truncW(danggiInc.yl*scale), nm: calc_truncW(danggiInc.nm*scale), nl: calc_truncW(danggiInc.nl*scale) };
+    amt = { ym: calc_truncAmt(inc.ym*r.normal.metro), yl: calc_truncAmt(inc.yl*r.normal.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
+  } else {
+    inc = { ym: calc_truncW(Math.min(danggiInc.ym,kept.ym)), yl: calc_truncW(Math.min(danggiInc.yl,kept.yl)), nm: calc_truncW(Math.min(danggiInc.nm,kept.nm)), nl: calc_truncW(Math.min(danggiInc.nl,kept.nl)) };
+    amt = { ym: calc_truncAmt(inc.ym*r.youth.metro), yl: calc_truncAmt(inc.yl*r.youth.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
+  }
+  return { kept, inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, youthDec };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 사후관리
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_sahuCheck(corp, wD, wC, dInc, mult) {
+  const r = RATES[corp], isS = (corp==='중소');
+
+  const yDec = Math.max(0, calc_rp2(calc_youthW(wD)-calc_youthW(wC)));
+  const nDec = Math.max(0, calc_rp2(calc_rp2(calc_totalW(wD)-calc_youthW(wD))-calc_rp2(calc_totalW(wC)-calc_youthW(wC))));
+  const tDec = Math.max(0, calc_rp2(calc_totalW(wD)-calc_totalW(wC)));
+  const yInc = calc_rp2(dInc.ym + dInc.yl);
+
+  let type = 'ok';
+  if (tDec>0 && yDec>=tDec) type='case_a';
+  else if (tDec>0) type='case_b';
+  else if (yDec>0) type='youth_only';
+
+  if (type==='ok') return { type, raw:0, yDec:0, tDec:0 };
+
+  let raw = 0;
+
+  if (!isS) {
+    if (type==='youth_only') {
+      raw = Math.min(yDec,yInc) * (r.youth.metro-r.normal.metro);
+    } else if (type==='case_a') {
+      const eff=Math.min(yDec,yInc), conv=Math.max(0,eff-tDec);
+      raw = conv*(r.youth.metro-r.normal.metro) + tDec*r.youth.metro;
+    } else {
+      raw = Math.min(yDec,tDec)*r.youth.metro + Math.min(nDec,tDec)*r.normal.metro;
+    }
+  } else {
+    const ymDec = Math.max(0, calc_rp2(wD.ym-wC.ym));
+    const ylDec = Math.max(0, calc_rp2(wD.yl-wC.yl));
+    const nmDec = Math.max(0, calc_rp2(wD.nm-wC.nm));
+    const nlDec = Math.max(0, calc_rp2(wD.nl-wC.nl));
+    const sumYDec = calc_rp2(ymDec+ylDec);
+    const sumNDec = calc_rp2(nmDec+nlDec);
+    const ymR = sumYDec>0 ? ymDec/sumYDec : 0;
+    const ylR = sumYDec>0 ? ylDec/sumYDec : 0;
+    const nmR = sumNDec>0 ? nmDec/sumNDec : 0;
+    const nlR = sumNDec>0 ? nlDec/sumNDec : 0;
+
+    if (type==='youth_only') {
+      const effY = Math.min(yDec, yInc);
+      raw = (effY*ymR)*(r.youth.metro-r.normal.metro)
+          + (effY*ylR)*(r.youth.local-r.normal.local);
+    } else if (type==='case_a') {
+      const eff=Math.min(yDec,yInc), conv=Math.max(0,eff-tDec), exit=tDec;
+      raw = (conv*ymR)*(r.youth.metro-r.normal.metro)
+          + (conv*ylR)*(r.youth.local-r.normal.local);
+      raw += (exit*ymR)*r.youth.metro
+           + (exit*ylR)*r.youth.local;
+    } else {
+      const effY=Math.min(yDec,tDec), effN=Math.min(nDec,tDec);
+      raw = (effY*ymR)*r.youth.metro + (effY*ylR)*r.youth.local
+          + (effN*nmR)*r.normal.metro + (effN*nlR)*r.normal.local;
+    }
+  }
+
+  raw = calc_truncAmt(raw * mult);
+  return { type, raw, yDec, tDec };
+}
+
+function calc_sahuBadge(type) {
+  switch(type) {
+    case 'ok': return '<span class="badge badge-ok">정상</span>';
+    case 'youth_only': return '<span class="badge badge-warn">나.청년감소</span>';
+    case 'case_a': return '<span class="badge badge-danger">가.\u2460</span>';
+    case 'case_b': return '<span class="badge badge-danger">가.\u2461</span>';
+    default: return '';
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UI 초기화
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_initSelectors() {
+  const sf = document.getElementById('year-from');
+  const st = document.getElementById('year-to');
+  for (let y=2019; y<=2026; y++) { const o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===2022) o.selected=true; sf.appendChild(o); }
+  for (let y=2020; y<=2027; y++) { const o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===2025) o.selected=true; st.appendChild(o); }
+}
+
+function calc_saveVals() { document.querySelectorAll('#input-area input[type=number]').forEach(e => { calc_saved[e.id]=e.value; }); }
+function calc_restoreVals() { document.querySelectorAll('#input-area input[type=number]').forEach(e => { if(calc_saved[e.id]!==undefined) e.value=calc_saved[e.id]; }); }
+
+function calc_onSettingsChange() { calc_saveVals(); calc_buildInput(); calc_restoreVals(); calc_recalcAll(); }
+
+function calc_buildInput() {
+  const corp=calc_getCorp(), from=calc_getFrom(), to=calc_getTo();
+  const isS=(corp==='중소'), hasN=(corp!=='대기업');
+  const maxY=RATES[corp].years;
+  if (to<=from) { document.getElementById('input-area').innerHTML='<p style="color:var(--warn);">종료연도가 시작연도보다 커야 합니다.</p>'; return; }
+
+  const starts = []; for (let y=from+1; y<=to; y++) starts.push(y);
+  document.getElementById('info-text').textContent = `입력: ${from}~${to}년 \u2192 시작연도: ${starts.join(', ')}년`;
+
+  let h='';
+  starts.forEach(startY => {
+    const isOldRule = startY < 2025;
+    const ruleLabel = isOldRule ? '종전 규정' : '개정 규정';
+    const ruleDesc = isOldRule
+      ? '(총 근무개월수 합계 \u00F7 12)'
+      : '(인별 근무개월수\u00F712 \u2192 0.01미만 버림 후 합산)';
+    const ruleBadge = isOldRule
+      ? '<span class="badge badge-warn">종전 규정</span>'
+      : '<span class="badge badge-ok">개정 규정</span>';
+
+    const yearsNeeded = [];
+    for (let i=-1; i<maxY; i++) yearsNeeded.push(startY+i);
+
+    h+=`<div style="margin-bottom:18px;padding:12px;border:1px solid var(--border);border-radius:8px;background:${isOldRule?'#fffbf0':'#f0faf6'};">`;
+    h+=`<div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">`;
+    h+=`<span class="tl-title-badge">${startY}년 시작</span>`;
+    h+=ruleBadge;
+    h+=`<span style="font-size:11px;color:var(--text-muted);">상시근로자 수 판단: ${ruleLabel} ${ruleDesc}</span>`;
+    h+=`</div>`;
+
+    h+='<table class="input-table"><thead><tr>';
+    h+='<th rowspan="2" style="width:70px;">연도</th>';
+    h+='<th rowspan="2" style="width:50px;">역할</th>';
+    h+='<th rowspan="2" style="width:80px;background:#e8eef8;">상시합계</th>';
+    h+=`<th colspan="${isS?2:1}" class="y-hdr">청년등</th>`;
+    if(hasN) h+=`<th colspan="${isS?2:1}" class="n-hdr">청년등외</th>`;
+    h+='</tr><tr>';
+    h+=`<th class="y-hdr">${isS?'수도권':'전체'}</th>`;
+    if(isS) h+='<th class="y-hdr">비수도권</th>';
+    if(hasN) { h+=`<th class="n-hdr">${isS?'수도권':'전체'}</th>`; if(isS) h+='<th class="n-hdr">비수도권</th>'; }
+    h+='</tr></thead><tbody>';
+
+    yearsNeeded.forEach((y, idx) => {
+      let role='';
+      if(idx===0) role='전기';
+      else if(idx===1) role='당기';
+      else role=(idx-1)+'차추가';
+
+      h+=`<tr><td class="lbl"><strong>${y}년</strong></td>`;
+      h+=`<td style="font-size:11px;color:var(--text-muted);">${role}</td>`;
+      h+=`<td><input type="number" id="w${startY}-${y}-tot" step="0.01" value="" placeholder="자동" style="background:#f0f5ff;font-weight:600;" oninput="recalcAll()"></td>`;
+      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`;
+      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`;
+      if(hasN) { h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`; if(isS) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`; }
+      h+='</tr>';
+    });
+
+    h+='</tbody></table></div>';
+  });
+
+  document.getElementById('input-area').innerHTML = h;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 타임라인 계산
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_calcTimeline(startY) {
+  const corp=calc_getCorp(), r=RATES[corp], maxY=r.years;
+  const prev=startY-1;
+  const wPrev=calc_getW(startY, prev), wDanggi=calc_getW(startY, startY);
+  const diff=calc_diffW(wDanggi, wPrev);
+  const danggi=calc_calcDanggi(corp, diff);
+
+  const tl = [];
+  tl.push({ year:prev, role:'전기', credit:0, chugjing:0, sahu:null, hasData:true });
+  tl.push({ year:startY, role:'당기', credit:danggi.total, chugjing:0, sahu:null, hasData:true, danggi, diff });
+
+  for (let i=1; i<maxY; i++) {
+    const cy = startY+i;
+    const wC=calc_getW(startY, cy);
+    const addtl=calc_calcAddtl(corp, danggi.inc, wC, wPrev, wDanggi);
+    const credit=addtl.total;
+    let sahu, chugjing=0, limit=0, mult=1, prevChug=0;
+
+    if (i===1) {
+      mult=1; limit=danggi.total;
+      sahu=calc_sahuCheck(corp, wDanggi, wC, danggi.inc, mult);
+      chugjing=calc_truncAmt(Math.min(sahu.raw, limit));
+    } else if (i===2) {
+      const p=tl[tl.length-1];
+      const cnt=(danggi.total>0?1:0)+((p.hasData&&p.credit>0)?1:0);
+      mult=cnt; limit=danggi.total+(p.hasData?p.credit:0);
+      prevChug=p.hasData?p.chugjing:0;
+      sahu=calc_sahuCheck(corp, wDanggi, wC, danggi.inc, mult);
+      chugjing=calc_truncAmt(Math.min(Math.max(0, sahu.raw-prevChug), Math.max(0, limit-prevChug)));
+    }
+
+    tl.push({ year:cy, role:i+'차 추가', credit, chugjing, sahu, hasData:true, addtl, idx:i, limit, mult, prevChug });
+  }
+  return { startY, danggi, tl };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 전체 재계산 & 렌더
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_recalcAll() {
+  const from=calc_getFrom(), to=calc_getTo();
+  if (to<=from) return;
+
+  const starts=[]; for(let y=from+1; y<=to; y++) starts.push(y);
+  const all = starts.map(s => calc_calcTimeline(s));
+
+  calc_renderTimelines(all);
+  calc_renderSummary(all, from, to);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 검증
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_calcVerification(tl, danggi, corp, startY) {
+  const r = RATES[corp];
+  const wPrev = calc_getW(startY, startY-1);
+  const dataItems = tl.filter(t => t.hasData && t.role!=='전기');
+  if (dataItems.length <= 1) return null;
+
+  const last = dataItems[dataItems.length-1];
+  const wLast = calc_getW(startY, last.year);
+
+  const effDiff = calc_diffW(wLast, wPrev);
+  const wDanggi = calc_getW(startY, startY);
+  const youthDec = calc_youthW(wLast) < calc_youthW(wDanggi);
+
+  const totalEffDiff = Math.max(0, calc_totalW(wLast) - calc_totalW(wPrev));
+  const rawEffInc = {
+    ym: Math.min(danggi.inc.ym, Math.max(0, effDiff.ym)),
+    yl: Math.min(danggi.inc.yl, Math.max(0, effDiff.yl)),
+    nm: Math.min(danggi.inc.nm, Math.max(0, effDiff.nm)),
+    nl: Math.min(danggi.inc.nl, Math.max(0, effDiff.nl))
+  };
+
+  let effInc;
+  if (youthDec) {
+    const dTotal = danggi.inc.ym + danggi.inc.yl + danggi.inc.nm + danggi.inc.nl;
+    const maintained = Math.min(dTotal, totalEffDiff);
+    const scale = dTotal > 0 ? maintained / dTotal : 0;
+    effInc = { ym: calc_truncW(danggi.inc.ym*scale), yl: calc_truncW(danggi.inc.yl*scale), nm: calc_truncW(danggi.inc.nm*scale), nl: calc_truncW(danggi.inc.nl*scale) };
+  } else {
+    const sumRaw = rawEffInc.ym + rawEffInc.yl + rawEffInc.nm + rawEffInc.nl;
+    if (sumRaw > totalEffDiff && totalEffDiff >= 0) {
+      const s = sumRaw > 0 ? totalEffDiff / sumRaw : 0;
+      effInc = { ym: calc_truncW(rawEffInc.ym*s), yl: calc_truncW(rawEffInc.yl*s), nm: calc_truncW(rawEffInc.nm*s), nl: calc_truncW(rawEffInc.nl*s) };
+    } else {
+      effInc = rawEffInc;
+    }
+  }
+
+  const yR = youthDec ? r.normal : r.youth;
+  const fsPerYear = calc_truncAmt(effInc.ym*yR.metro) + calc_truncAmt(effInc.yl*yR.local)
+                  + calc_truncAmt(effInc.nm*r.normal.metro) + calc_truncAmt(effInc.nl*r.normal.local);
+  const numY = dataItems.length;
+  const fsTotal = fsPerYear * numY;
+  const actualNet = dataItems.reduce((s,t) => s + t.credit - t.chugjing, 0);
+  const match = Math.abs(fsTotal - actualNet) < 0.5;
+  const totalEffInc = effInc.ym + effInc.yl + effInc.nm + effInc.nl;
+
+  return { effInc, totalEffInc, fsPerYear, fsTotal, actualNet, numY, match, lastYear: last.year, youthDec };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 타임라인 카드 렌더링
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_renderTimelines(all) {
+  const corp=calc_getCorp(), maxY=RATES[corp].years;
+  let h = '';
+
+  all.forEach(({startY, danggi, tl}) => {
+    const totalCredit = tl.reduce((s,t) => s+(t.hasData?t.credit:0), 0);
+    const totalChug = tl.reduce((s,t) => s+(t.hasData?t.chugjing:0), 0);
+    const net = totalCredit - totalChug;
+    const maxPossible = danggi.total * maxY;
+    const pct = maxPossible>0 ? Math.min(100, Math.max(5, (net/maxPossible)*100)) : 0;
+    const hasAnyCredit = danggi.total > 0;
+
+    h += '<div class="tl-section">';
+    h += `<div class="tl-title"><span class="tl-title-badge">${startY}년 시작</span> ${startY}년 vs ${startY-1}년`;
+    if (!hasAnyCredit) h += ' <span style="color:var(--text-muted);font-weight:400;">(증가 없음)</span>';
+    h += '</div>';
+
+    h += '<div class="tl-row">';
+    tl.forEach((item, idx) => {
+      if (idx>0) h += '<div class="tl-arrow">&rarr;</div>';
+      let cc = 'tl-card ';
+      if (!item.hasData) cc += 'c-missing';
+      else if (item.role==='전기') cc += 'c-prev';
+      else if (item.role==='당기') cc += 'c-danggi';
+      else if (item.chugjing>0) cc += 'c-chug';
+      else cc += 'c-addtl';
+
+      h += `<div class="${cc}">`;
+      h += `<div class="tl-card-year">${item.year}년</div>`;
+
+      if (item.role==='전기') {
+        h += '<div class="tl-card-role"><span class="badge badge-prev">전기</span></div>';
+        h += '<div class="tl-card-amount" style="color:var(--text-muted);">기준</div>';
+        h += `<div class="tl-card-detail">전체 ${calc_fmtD(calc_totalW(calc_getW(startY, item.year)))}명</div>`;
+      } else if (!item.hasData) {
+        h += `<div class="tl-card-role"><span class="badge badge-na">${item.role}</span></div>`;
+        h += '<div class="tl-card-amount" style="color:#ccc;">미입력</div>';
+      } else if (item.role==='당기') {
+        h += '<div class="tl-card-role"><span class="badge badge-danggi">당기공제</span></div>';
+        h += `<div class="tl-card-amount blue">+${calc_fmt(item.credit)}만</div>`;
+        const yInc = item.danggi.inc.ym+item.danggi.inc.yl;
+        const nInc = item.danggi.inc.nm+item.danggi.inc.nl;
+        h += `<div class="tl-card-detail">청년+${calc_fmtD(yInc)} / 비청년+${calc_fmtD(nInc)}</div>`;
+      } else {
+        h += `<div class="tl-card-role"><span class="badge badge-addtl">${item.role}</span></div>`;
+        h += `<div class="tl-card-amount green">+${calc_fmt(item.credit)}만</div>`;
+        if (item.addtl && item.addtl.youthDec) h += `<div style="margin-top:2px;"><span class="badge badge-warn">청년감소\u2192비청년단가</span></div>`;
+        if (item.sahu) h += `<div style="margin-top:4px;">${calc_sahuBadge(item.sahu.type)}</div>`;
+        if (item.chugjing>0) {
+          h += `<div class="tl-card-chug">추징 -${calc_fmt(item.chugjing)}만</div>`;
+          const n = item.credit - item.chugjing;
+          h += `<div class="tl-card-net" style="color:${n>=0?'var(--accent2)':'var(--warn)'};">순 ${calc_fmt(n)}만</div>`;
+        }
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+
+    if (hasAnyCredit) {
+      h += '<div class="tl-progress">';
+      h += '<div class="progress-bar">';
+      h += `<div class="progress-fill ${totalChug>0?'has-chug':''}" style="width:${pct}%">${calc_fmt(net)}만원</div>`;
+      h += '</div>';
+      h += `<div class="progress-label">누적 순공제 ${calc_fmt(net)}만원`;
+      if (totalChug>0) h += ` (공제 ${calc_fmt(totalCredit)}만 - 추징 ${calc_fmt(totalChug)}만)`;
+      h += ` / 최대 ${calc_fmt(maxPossible)}만원 (${maxY}년 완전유지)</div>`;
+      h += '</div>';
+    }
+
+    if (hasAnyCredit) {
+      const rt = RATES[corp], isS = (corp==='중소'), hasN = (corp!=='대기업');
+      h += '<div class="tl-formulas">';
+      h += '<div class="f-title">적용 단가</div>';
+      if (isS) {
+        h += `청년: 수도권 <code>${calc_fmt(rt.youth.metro)}만</code> / 비수도권 <code>${calc_fmt(rt.youth.local)}만</code>`;
+        if (hasN) h += ` | 비청년: 수도권 <code>${calc_fmt(rt.normal.metro)}만</code> / 비수도권 <code>${calc_fmt(rt.normal.local)}만</code>`;
+      } else {
+        h += `청년: <code>${calc_fmt(rt.youth.metro)}만</code>`;
+        if (hasN) h += ` | 비청년: <code>${calc_fmt(rt.normal.metro)}만</code>`;
+      }
+      h += '<br><br>';
+      h += '<div class="f-title">산식</div>';
+
+      if (isS) {
+        h += `당기(${startY}): `;
+        h += `청년 수도권+${calc_fmtD(danggi.inc.ym)}\u00D7${calc_fmt(rt.youth.metro)} + 비수도권+${calc_fmtD(danggi.inc.yl)}\u00D7${calc_fmt(rt.youth.local)}`;
+        if (hasN) h += ` + 비청년 수도권+${calc_fmtD(danggi.inc.nm)}\u00D7${calc_fmt(rt.normal.metro)} + 비수도권+${calc_fmtD(danggi.inc.nl)}\u00D7${calc_fmt(rt.normal.local)}`;
+        h += ` = <code>${calc_fmt(danggi.total)}만</code><br>`;
+      } else {
+        const yI = danggi.inc.ym+danggi.inc.yl, nI = danggi.inc.nm+danggi.inc.nl;
+        h += `당기(${startY}): 청년+${calc_fmtD(yI)}\u00D7${calc_fmt(rt.youth.metro)}`;
+        if (hasN) h += ` + 비청년+${calc_fmtD(nI)}\u00D7${calc_fmt(rt.normal.metro)}`;
+        h += ` = <code>${calc_fmt(danggi.total)}만</code><br>`;
+      }
+
+      tl.forEach(item => {
+        if (!item.hasData || item.role==='전기' || item.role==='당기') return;
+        h += `${item.role}(${item.year}): `;
+        if (item.addtl) {
+          if (item.addtl.youthDec) h += `<span style="color:var(--warn);font-weight:600;">\u26A0 청년감소\u2192비청년단가</span> `;
+          const yRate = item.addtl.youthDec ? rt.normal : rt.youth;
+          if (isS) {
+            h += `유지 \u2192 청년 수도권${calc_fmtD(item.addtl.inc.ym)}\u00D7${calc_fmt(yRate.metro)} + 비수도권${calc_fmtD(item.addtl.inc.yl)}\u00D7${calc_fmt(yRate.local)}`;
+            if (hasN) h += ` + 비청년 수도권${calc_fmtD(item.addtl.inc.nm)}\u00D7${calc_fmt(rt.normal.metro)} + 비수도권${calc_fmtD(item.addtl.inc.nl)}\u00D7${calc_fmt(rt.normal.local)}`;
+            h += ` = <code>${calc_fmt(item.credit)}만</code>`;
+          } else {
+            const kY = item.addtl.inc.ym+item.addtl.inc.yl, kN = item.addtl.inc.nm+item.addtl.inc.nl;
+            h += `유지 \u2192 청년${calc_fmtD(kY)}\u00D7${calc_fmt(yRate.metro)}`;
+            if (hasN) h += ` + 비청년${calc_fmtD(kN)}\u00D7${calc_fmt(rt.normal.metro)}`;
+            h += ` = <code>${calc_fmt(item.credit)}만</code>`;
+          }
+        }
+        if (item.sahu && item.sahu.type!=='ok') {
+          h += ` | 사후관리(${item.sahu.type}): 산출<code>${calc_fmt(item.sahu.raw)}만</code>`;
+          if (item.prevChug>0) h += `-\u2460<code>${calc_fmt(item.prevChug)}만</code>`;
+          h += ` (한도${calc_fmt(item.limit)}만) \u2192 추징<code>${calc_fmt(item.chugjing)}만</code>`;
+        } else if (item.sahu) {
+          h += ' | 사후관리: 정상';
+        }
+        h += '<br>';
+      });
+
+      const v = calc_calcVerification(tl, danggi, corp, startY);
+      if (v) {
+        h += '<div class="f-verify">';
+        h += '<div class="f-title">검증 ("처음부터 감소 상태로 계산")</div>';
+        if (v.youthDec) h += `<span style="color:var(--warn);">\u203B 청년감소 \u2192 비청년단가 적용</span><br>`;
+        h += `${v.lastYear}년 기준 유효증가: <code>${calc_fmtD(v.totalEffInc)}명</code> \u2192 `;
+        h += `연 <code>${calc_fmt(v.fsPerYear)}만</code> \u00D7 ${v.numY}년 = <code>${calc_fmt(v.fsTotal)}만</code><br>`;
+        h += `실제 순공제 합계: <code>${calc_fmt(v.actualNet)}만</code><br>`;
+        if (v.match) {
+          h += `<span class="verify-pass">\u2713 검증 통과</span> (${calc_fmt(v.fsTotal)}만 = ${calc_fmt(v.actualNet)}만)`;
+        } else {
+          const diff = v.fsTotal - v.actualNet;
+          h += `<span class="verify-fail">\u2717 불일치</span> (차이: ${calc_fmt(diff)}만`;
+          if (diff > 0) h += ' - 중간연도 추가추징 미환급분 추정';
+          h += ')';
+        }
+        h += '</div>';
+      }
+
+      h += '</div>';
+    }
+
+    h += '</div>';
+  });
+
+  document.getElementById('timelines-area').innerHTML = h;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 종합 매트릭스
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let calc_lastAll, calc_lastFrom, calc_lastTo;
+
+function calc_toggleAxis() {
+  calc_axisFlipped = !calc_axisFlipped;
+  document.getElementById('axis-toggle').textContent = calc_axisFlipped ? '행=시작연도 | 축 전환' : '행=과세연도 | 축전환';
+  if (calc_lastAll) calc_renderSummary(calc_lastAll, calc_lastFrom, calc_lastTo);
+}
+
+function calc_renderSummary(all, from, to) {
+  calc_lastAll=all; calc_lastFrom=from; calc_lastTo=to;
+
+  const matrix = {};
+  const startYears = all.map(a => a.startY);
+  const calYearSet = new Set();
+
+  all.forEach(({startY, tl}) => {
+    tl.forEach(item => {
+      if (item.role==='전기' || !item.hasData) return;
+      calYearSet.add(item.year);
+      if (!matrix[item.year]) matrix[item.year] = {};
+      matrix[item.year][startY] = { credit: item.credit, chugjing: item.chugjing };
+    });
+  });
+
+  const calYears = [...calYearSet].sort();
+  let h, grandCredit=0, grandChug=0;
+
+  if (!calc_axisFlipped) {
+    h = '<table class="matrix"><thead><tr>';
+    h += '<th>과세연도 \\ 시작</th>';
+    startYears.forEach(sy => h += `<th>${sy}년</th>`);
+    h += '<th>연 합계</th></tr></thead><tbody>';
+
+    const colC={}, colCh={}; startYears.forEach(sy=>{colC[sy]=0;colCh[sy]=0;});
+
+    calYears.forEach(cy => {
+      h+='<tr>'; h+=`<td class="lbl"><strong>${cy}년</strong></td>`;
+      let rowC=0, rowCh=0;
+      startYears.forEach(sy => {
+        const d=matrix[cy]&&matrix[cy][sy];
+        if(d){colC[sy]+=d.credit;colCh[sy]+=d.chugjing;rowC+=d.credit;rowCh+=d.chugjing;
+          h+='<td>'; if(d.credit>0) h+=`<div class="cell-credit">${calc_fmt(d.credit)}</div>`; else h+='<div style="color:#ccc;">0</div>';
+          if(d.chugjing>0) h+=`<div class="cell-chug">(-${calc_fmt(d.chugjing)})</div>`; h+='</td>';
+        } else h+='<td></td>';
+      });
+      grandCredit+=rowC; grandChug+=rowCh;
+      h+=`<td class="col-total">${calc_fmt(rowC-rowCh)}`;
+      if(rowCh>0) h+=`<div class="cell-chug">(-${calc_fmt(rowCh)})</div>`; h+='</td></tr>';
+    });
+
+    h+='<tr class="row-total"><td class="lbl">합계</td>';
+    startYears.forEach(sy=>{const n=colC[sy]-colCh[sy]; h+=`<td>${calc_fmt(n)}`;
+      if(colCh[sy]>0) h+=`<br><span style="font-size:11px;opacity:.8;">(-${calc_fmt(colCh[sy])})</span>`; h+='</td>';});
+    const gn=grandCredit-grandChug; h+=`<td>${calc_fmt(gn)}</td></tr></tbody></table>`;
+
+  } else {
+    h = '<table class="matrix"><thead><tr>';
+    h += '<th>시작 \\ 과세연도</th>';
+    calYears.forEach(cy => h += `<th>${cy}년</th>`);
+    h += '<th>합계</th></tr></thead><tbody>';
+
+    const colC={}, colCh={}; calYears.forEach(cy=>{colC[cy]=0;colCh[cy]=0;});
+
+    startYears.forEach(sy => {
+      h+='<tr>'; h+=`<td class="lbl"><strong>${sy}년 시작</strong></td>`;
+      let rowC=0, rowCh=0;
+      calYears.forEach(cy => {
+        const d=matrix[cy]&&matrix[cy][sy];
+        if(d){colC[cy]+=d.credit;colCh[cy]+=d.chugjing;rowC+=d.credit;rowCh+=d.chugjing;
+          h+='<td>'; if(d.credit>0) h+=`<div class="cell-credit">${calc_fmt(d.credit)}</div>`; else h+='<div style="color:#ccc;">0</div>';
+          if(d.chugjing>0) h+=`<div class="cell-chug">(-${calc_fmt(d.chugjing)})</div>`; h+='</td>';
+        } else h+='<td></td>';
+      });
+      grandCredit+=rowC; grandChug+=rowCh;
+      h+=`<td class="col-total">${calc_fmt(rowC-rowCh)}`;
+      if(rowCh>0) h+=`<div class="cell-chug">(-${calc_fmt(rowCh)})</div>`; h+='</td></tr>';
+    });
+
+    h+='<tr class="row-total"><td class="lbl">합계</td>';
+    calYears.forEach(cy=>{const n=colC[cy]-colCh[cy]; h+=`<td>${calc_fmt(n)}`;
+      if(colCh[cy]>0) h+=`<br><span style="font-size:11px;opacity:.8;">(-${calc_fmt(colCh[cy])})</span>`; h+='</td>';});
+    const gn=grandCredit-grandChug; h+=`<td>${calc_fmt(gn)}</td></tr></tbody></table>`;
+  }
+
+  const grandNet = grandCredit - grandChug;
+  h += '<div class="highlight-box">';
+  h += `<div class="label">입력 기간 내 총 순공제액</div>`;
+  h += `<div class="big">${calc_fmt(grandNet)}만원</div>`;
+  if (grandChug>0) h += `<div style="font-size:12px;opacity:.8;margin-top:4px;">총 공제 ${calc_fmt(grandCredit)}만 - 총 추징 ${calc_fmt(grandChug)}만</div>`;
+  h += '</div>';
+
+  document.getElementById('summary-area').innerHTML = h;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 명세서 데이터 가져오기 (direct JS + localStorage fallback)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calc_loadFromSpec(auto) {
+  const corp=calc_getCorp(), from=calc_getFrom(), to=calc_getTo();
+  const isS=(corp==='중소'), maxY=RATES[corp].years;
+  const starts=[]; for(let y=from+1; y<=to; y++) starts.push(y);
+
+  let filled=0, missing=[];
+
+  starts.forEach(startY => {
+    const regType = startY < 2025 ? 'old' : 'new';
+    const yearsNeeded = [];
+    for(let i=-1; i<maxY; i++) yearsNeeded.push(startY+i);
+
+    yearsNeeded.forEach(y => {
+      // Try window.specData first (direct JS), then localStorage
+      let d = null;
+      if (window.specData && window.specData[regType] && window.specData[regType][y]) {
+        d = window.specData[regType][y];
+      } else {
+        const key = 'goyong_' + regType + '_' + y;
+        const raw = localStorage.getItem(key);
+        if (raw) d = JSON.parse(raw);
+      }
+
+      if (!d) { missing.push(y+'년('+(regType==='old'?'종전':'개정')+')'); return; }
+
+      const hasMetroData = d.youthMetro !== undefined;
+      const ymEl = document.getElementById('w'+startY+'-'+y+'-ym');
+      const nmEl = document.getElementById('w'+startY+'-'+y+'-nm');
+      if(isS && hasMetroData) {
+        if(ymEl) { ymEl.value = calc_truncW(d.youthMetro); filled++; }
+        if(nmEl) { nmEl.value = calc_truncW(d.nonYouthMetro); filled++; }
+        const ylEl = document.getElementById('w'+startY+'-'+y+'-yl');
+        const nlEl = document.getElementById('w'+startY+'-'+y+'-nl');
+        if(ylEl) { ylEl.value = calc_truncW(d.youthLocal); filled++; }
+        if(nlEl) { nlEl.value = calc_truncW(d.nonYouthLocal); filled++; }
+      } else {
+        if(ymEl) { ymEl.value = calc_truncW(d.youthWorkerCount); filled++; }
+        if(nmEl) { nmEl.value = calc_truncW(d.nonYouthWorkerCount); filled++; }
+        if(isS) {
+          const ylEl = document.getElementById('w'+startY+'-'+y+'-yl');
+          const nlEl = document.getElementById('w'+startY+'-'+y+'-nl');
+          if(ylEl) ylEl.value = 0;
+          if(nlEl) nlEl.value = 0;
+        }
+      }
+      calc_updateTotPlaceholder(startY, y);
+    });
+  });
+
+  const statusEl = document.getElementById('load-status');
+  if(filled > 0 && missing.length === 0) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--accent2-light)';
+    statusEl.style.color = 'var(--accent2)';
+    statusEl.innerHTML = '명세서 데이터를 ' + (auto ? '자동으로 ' : '') + '가져왔습니다.' + (isS ? ' <strong>중소기업</strong>: 수도권/비수도권이 자동 배분되었습니다.' : '');
+  } else if(filled > 0) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--orange-light)';
+    statusEl.style.color = '#856404';
+    statusEl.innerHTML = '일부 데이터를 가져왔습니다. 누락: ' + [...new Set(missing)].join(', ') + ' \u2192 해당 연도 명세서를 먼저 계산해주세요.';
+  } else if(!auto) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--warn-light)';
+    statusEl.style.color = 'var(--warn)';
+    statusEl.innerHTML = '명세서 데이터가 없습니다. 먼저 명세서 탭에서 계산을 실행해주세요.';
+  }
+
+  calc_recalcAll();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 엑셀 다운로드 (계산기)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function calc_exportExcel() {
+  if (!calc_lastAll || calc_lastAll.length === 0) { alert('먼저 계산을 실행해주세요.'); return; }
+
+  const wb = new ExcelJS.Workbook();
+  const corp = calc_getCorp(), rt = RATES[corp], isS = (corp==='중소'), hasN = (corp!=='대기업');
+  const L = i => String.fromCharCode(65+i);
+
+  const C = {
+    dark:'FF1B3A8C', pri:'FF2255CC', mid:'FF4477DD',
+    light:'FFDCE6F8', pale:'FFEEF3FC',
+    white:'FFFFFFFF', black:'FF1A1A2E', muted:'FF556688', red:'FFC0392B',
+  };
+  const Fn = (sz,bold,color) => ({ name:'맑은 고딕', size:sz||10, bold:!!bold, color:color?{argb:color}:{argb:C.black} });
+  const fl = argb => ({ type:'pattern', pattern:'solid', fgColor:{argb} });
+  const bd = { top:{style:'thin',color:{argb:'FFB0C4E8'}}, bottom:{style:'thin',color:{argb:'FFB0C4E8'}}, left:{style:'thin',color:{argb:'FFB0C4E8'}}, right:{style:'thin',color:{argb:'FFB0C4E8'}} };
+  const nf = '#,##0', nf2 = '#,##0.00';
+
+  function initWs(ws) { ws.views = [{ showGridLines: false }]; }
+  function hdrRow(ws, rn, cols) {
+    cols.forEach((v,i) => { const c=ws.getCell(L(i)+rn); c.value=v; c.font=Fn(10,true,C.white); c.fill=fl(C.pri); c.border=bd; c.alignment={vertical:'middle',horizontal:'center',wrapText:true}; });
+    ws.getRow(rn).height = 22;
+  }
+  function dc(ws, rn, ci, v, fmt) {
+    const c=ws.getCell(L(ci)+rn); c.value=v; c.font=Fn(10); c.border=bd; if(fmt) c.numFmt=fmt;
+    c.alignment={vertical:'middle', horizontal:typeof v==='number'||typeof v==='object'?'right':'left'}; return c;
+  }
+  function fc(ws, rn, ci, formula, result, fmt) {
+    const c=ws.getCell(L(ci)+rn); c.value={formula,result}; c.font=Fn(10); c.border=bd; if(fmt) c.numFmt=fmt;
+    c.alignment={vertical:'middle',horizontal:'right'}; return c;
+  }
+  function stripe(ws, rn, cnt, even) { if(!even) return; for(let i=0;i<cnt;i++){const c=ws.getCell(L(i)+rn); if(!c.fill||!c.fill.fgColor) c.fill=fl(C.light);} }
+  function totRow(ws, rn, cnt) { for(let i=0;i<cnt;i++){const c=ws.getCell(L(i)+rn); c.fill=fl(C.mid); c.font=Fn(10,true,C.white); c.border=bd; c.alignment={vertical:'middle',horizontal:typeof c.value==='number'||typeof c.value==='object'?'right':'left'};} ws.getRow(rn).height=22; }
+
+  calc_lastAll.forEach(({startY, danggi, tl}) => {
+    const ws = wb.addWorksheet(startY+'년 산출');
+    initWs(ws);
+    const totalCredit = tl.reduce((s,t) => s+(t.hasData?t.credit:0), 0);
+    const totalChug = tl.reduce((s,t) => s+(t.hasData?t.chugjing:0), 0);
+    const maxCol = isS ? 11 : (hasN ? 9 : 8);
+
+    ws.mergeCells('A1:'+L(maxCol-1)+'1');
+    const tc=ws.getCell('A1');
+    tc.value=`통합고용세액공제 산출내역  ${startY}년 시작 (${corp})`;
+    tc.font=Fn(14,true,C.white); tc.fill=fl(C.dark); tc.alignment={vertical:'middle'}; ws.getRow(1).height=32;
+
+    let r2 = 3;
+    ws.mergeCells('A'+r2+':B'+r2);
+    ws.getCell('A'+r2).value='적용 단가 (만원)'; ws.getCell('A'+r2).font=Fn(10,true); ws.getCell('A'+r2).fill=fl(C.pale); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).border=bd;
+    r2++;
+    const rateRow1 = r2;
+    if (isS) {
+      ['A','B','C','D'].forEach(l=>{ws.getCell(l+r2).fill=fl(C.pale);ws.getCell(l+r2).border=bd;});
+      ws.getCell('A'+r2).value='청년 수도권'; ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      ws.getCell('B'+r2).value=rt.youth.metro; ws.getCell('B'+r2).font=Fn(10,true); ws.getCell('B'+r2).numFmt=nf;
+      ws.getCell('C'+r2).value='청년 비수도권'; ws.getCell('C'+r2).font=Fn(9,false,C.muted);
+      ws.getCell('D'+r2).value=rt.youth.local; ws.getCell('D'+r2).font=Fn(10,true); ws.getCell('D'+r2).numFmt=nf;
+      r2++;
+      const rateRow2 = r2;
+      ['A','B','C','D'].forEach(l=>{ws.getCell(l+r2).fill=fl(C.pale);ws.getCell(l+r2).border=bd;});
+      ws.getCell('A'+r2).value='비청년 수도권'; ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      ws.getCell('B'+r2).value=rt.normal.metro; ws.getCell('B'+r2).font=Fn(10,true); ws.getCell('B'+r2).numFmt=nf;
+      ws.getCell('C'+r2).value='비청년 비수도권'; ws.getCell('C'+r2).font=Fn(9,false,C.muted);
+      ws.getCell('D'+r2).value=rt.normal.local; ws.getCell('D'+r2).font=Fn(10,true); ws.getCell('D'+r2).numFmt=nf;
+      var refYM='$B$'+rateRow1, refYL='$D$'+rateRow1, refNM='$B$'+rateRow2, refNL='$D$'+rateRow2;
+    } else {
+      ['A','B','C','D'].forEach(l=>{ws.getCell(l+r2).fill=fl(C.pale);ws.getCell(l+r2).border=bd;});
+      ws.getCell('A'+r2).value='청년'; ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      ws.getCell('B'+r2).value=rt.youth.metro; ws.getCell('B'+r2).font=Fn(10,true); ws.getCell('B'+r2).numFmt=nf;
+      if(hasN){ws.getCell('C'+r2).value='비청년';ws.getCell('C'+r2).font=Fn(9,false,C.muted);ws.getCell('D'+r2).value=rt.normal.metro;ws.getCell('D'+r2).font=Fn(10,true);ws.getCell('D'+r2).numFmt=nf;}
+      var refYM='$B$'+rateRow1, refNM='$D$'+rateRow1;
+    }
+    r2 += 2;
+
+    const wHdr = ['연도','구분'];
+    if(isS) wHdr.push('청년(수도권)','청년(비수도권)','비청년(수도권)','비청년(비수도권)','합계');
+    else if(hasN) wHdr.push('청년','비청년','합계');
+    else wHdr.push('청년','합계');
+    const wTotCI = wHdr.length - 1;
+    hdrRow(ws, r2, wHdr);
+    r2++;
+
+    tl.forEach((item,idx) => {
+      const w=calc_getW(startY,item.year);
+      dc(ws,r2,0,item.year+'년'); dc(ws,r2,1,item.role);
+      let ci=2;
+      if(isS){dc(ws,r2,ci++,w.ym,nf2);dc(ws,r2,ci++,w.yl,nf2);dc(ws,r2,ci++,w.nm,nf2);dc(ws,r2,ci++,w.nl,nf2);}
+      else if(hasN){dc(ws,r2,ci++,calc_rp2(w.ym+w.yl),nf2);dc(ws,r2,ci++,calc_rp2(w.nm+w.nl),nf2);}
+      else{dc(ws,r2,ci++,calc_rp2(w.ym+w.yl),nf2);}
+      const sumFrom=L(2)+r2, sumTo=L(wTotCI-1)+r2;
+      fc(ws,r2,wTotCI,'SUM('+sumFrom+':'+sumTo+')',calc_rp2(calc_totalW(w)),nf2);
+      stripe(ws,r2,wHdr.length,idx%2===1);
+      r2++;
+    });
+    r2++;
+
+    const cHdr = ['연도','구분'];
+    if(isS) cHdr.push('청년(수도권)','청년(비수도권)','비청년(수도권)','비청년(비수도권)');
+    else if(hasN) cHdr.push('청년 인원','비청년 인원');
+    else cHdr.push('청년 인원');
+    cHdr.push('공제액','추징액','순공제액','비고');
+    const amtCI = cHdr.length-4;
+    const chugCI = cHdr.length-3;
+    const netCI = cHdr.length-2;
+    hdrRow(ws, r2, cHdr);
+    r2++;
+    const calcFirst = r2;
+
+    let dIdx=0;
+    tl.forEach(item => {
+      if(item.role==='전기') return;
+      dc(ws,r2,0,item.year+'년'); dc(ws,r2,1,item.role);
+      let ci=2;
+      const yDec = item.addtl && item.addtl.youthDec;
+      if(item.role==='당기'){
+        if(isS){dc(ws,r2,ci++,danggi.inc.ym,nf2);dc(ws,r2,ci++,danggi.inc.yl,nf2);dc(ws,r2,ci++,danggi.inc.nm,nf2);dc(ws,r2,ci++,danggi.inc.nl,nf2);}
+        else if(hasN){dc(ws,r2,ci++,calc_rp2(danggi.inc.ym+danggi.inc.yl),nf2);dc(ws,r2,ci++,calc_rp2(danggi.inc.nm+danggi.inc.nl),nf2);}
+        else{dc(ws,r2,ci++,calc_rp2(danggi.inc.ym+danggi.inc.yl),nf2);}
+      } else if(item.addtl){
+        if(isS){dc(ws,r2,ci++,item.addtl.inc.ym,nf2);dc(ws,r2,ci++,item.addtl.inc.yl,nf2);dc(ws,r2,ci++,item.addtl.inc.nm,nf2);dc(ws,r2,ci++,item.addtl.inc.nl,nf2);}
+        else if(hasN){dc(ws,r2,ci++,calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);dc(ws,r2,ci++,calc_rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);}
+        else{dc(ws,r2,ci++,calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);}
+      }
+
+      let amtFormula;
+      if(isS){
+        const cC=L(2)+r2, dC=L(3)+r2, eC=L(4)+r2, fC=L(5)+r2;
+        if(yDec){
+          amtFormula='INT('+cC+'*'+refNM+')+INT('+dC+'*'+refNL+')+INT('+eC+'*'+refNM+')+INT('+fC+'*'+refNL+')';
+        } else {
+          amtFormula='INT('+cC+'*'+refYM+')+INT('+dC+'*'+refYL+')+INT('+eC+'*'+refNM+')+INT('+fC+'*'+refNL+')';
+        }
+      } else if(hasN){
+        const cC=L(2)+r2, dC=L(3)+r2;
+        if(yDec){
+          amtFormula='INT('+cC+'*'+refNM+')+INT('+dC+'*'+refNM+')';
+        } else {
+          amtFormula='INT('+cC+'*'+refYM+')+INT('+dC+'*'+refNM+')';
+        }
+      } else {
+        const cC=L(2)+r2;
+        amtFormula='INT('+cC+'*'+refYM+')';
+      }
+      fc(ws,r2,amtCI,amtFormula,item.credit,nf);
+      dc(ws,r2,chugCI,item.chugjing,nf);
+      fc(ws,r2,netCI,L(amtCI)+r2+'-'+L(chugCI)+r2,item.credit-item.chugjing,nf);
+
+      let note='';
+      if(yDec) note+='청년감소\u2192비청년단가 ';
+      if(item.sahu&&item.sahu.type!=='ok') note+='사후관리('+item.sahu.type+')';
+      dc(ws,r2,cHdr.length-1,note);
+
+      if(item.chugjing>0) for(let j=0;j<cHdr.length;j++) ws.getCell(L(j)+r2).font=Fn(10,false,C.red);
+      stripe(ws,r2,cHdr.length,dIdx%2===1);
+      dIdx++; r2++;
+    });
+    const calcLast = r2-1;
+
+    dc(ws,r2,0,'합계'); dc(ws,r2,1,'');
+    fc(ws,r2,amtCI,'SUM('+L(amtCI)+calcFirst+':'+L(amtCI)+calcLast+')',totalCredit,nf);
+    fc(ws,r2,chugCI,'SUM('+L(chugCI)+calcFirst+':'+L(chugCI)+calcLast+')',totalChug,nf);
+    fc(ws,r2,netCI,L(amtCI)+r2+'-'+L(chugCI)+r2,totalCredit-totalChug,nf);
+    totRow(ws,r2,cHdr.length);
+    r2 += 2;
+
+    const v=calc_calcVerification(tl,danggi,corp,startY);
+    if(v){
+      ws.mergeCells('A'+r2+':B'+r2);
+      ws.getCell('A'+r2).value='검증'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
+      ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
+      r2++;
+      const vRows=[
+        ['유효증가 인원',v.totalEffInc,nf2],['연간 공제액',v.fsPerYear,nf],['적용 연수',v.numY,null],
+        ['"처음부터" 합계',v.fsTotal,nf],['실제 순공제 합계',v.actualNet,nf],
+        ['결과',v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'만)',null],
+      ];
+      vRows.forEach(([label,val,fmt],idx)=>{
+        dc(ws,r2,0,label); const vc=dc(ws,r2,1,val,fmt);
+        ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        if(label==='결과') vc.font=Fn(10,true,v.match?C.pri:C.red);
+        stripe(ws,r2,2,idx%2===1); r2++;
+      });
+    }
+
+    ws.columns.forEach((col,i)=>{col.width=i===0?14:(i===cHdr.length-1?22:15);});
+  });
+
+  const ws2 = wb.addWorksheet('종합');
+  initWs(ws2);
+  const startYears=calc_lastAll.map(a=>a.startY);
+  const calYearSet=new Set();
+  const matrix={};
+
+  calc_lastAll.forEach(({startY,tl})=>{
+    tl.forEach(item=>{
+      if(item.role==='전기'||!item.hasData) return;
+      calYearSet.add(item.year);
+      if(!matrix[item.year]) matrix[item.year]={};
+      matrix[item.year][startY]={credit:item.credit,chugjing:item.chugjing};
+    });
+  });
+  const calYears=[...calYearSet].sort();
+  const mCols=calYears.length+2;
+  const totColI=calYears.length+1;
+
+  ws2.mergeCells('A1:'+L(mCols-1)+'1');
+  ws2.getCell('A1').value=`통합고용세액공제 종합 (${corp})`;
+  ws2.getCell('A1').font=Fn(14,true,C.white); ws2.getCell('A1').fill=fl(C.dark);
+  ws2.getCell('A1').alignment={vertical:'middle'}; ws2.getRow(1).height=32;
+
+  let row=3;
+  const mHdr=['시작연도 \\ 과세연도']; calYears.forEach(cy=>mHdr.push(cy+'년')); mHdr.push('합계');
+  hdrRow(ws2,row,mHdr);
+  row++;
+  const dataFirst=row;
+
+  let grandCredit=0,grandChug=0;
+  const colC={},colCh={}; calYears.forEach(cy=>{colC[cy]=0;colCh[cy]=0;});
+
+  startYears.forEach((sy,sIdx)=>{
+    dc(ws2,row,0,sy+'년 시작'); ws2.getCell('A'+row).font=Fn(10,true);
+    let rowC=0,rowCh=0;
+    calYears.forEach((cy,i)=>{
+      const d=matrix[cy]&&matrix[cy][sy];
+      if(d){
+        colC[cy]+=d.credit; colCh[cy]+=d.chugjing;
+        rowC+=d.credit; rowCh+=d.chugjing;
+        if(d.chugjing>0){const c=dc(ws2,row,i+1,d.credit-d.chugjing,nf);c.font=Fn(10,false,C.red);}
+        else dc(ws2,row,i+1,d.credit,nf);
+      } else dc(ws2,row,i+1,'');
+    });
+    grandCredit+=rowC; grandChug+=rowCh;
+    fc(ws2,row,totColI,'SUM('+L(1)+row+':'+L(calYears.length)+row+')',rowC-rowCh,nf);
+    ws2.getCell(L(totColI)+row).font=Fn(10,true);
+    stripe(ws2,row,mCols,sIdx%2===1);
+    row++;
+  });
+  const dataLast=row-1;
+
+  dc(ws2,row,0,'합계');
+  calYears.forEach((cy,i)=>{
+    fc(ws2,row,i+1,'SUM('+L(i+1)+dataFirst+':'+L(i+1)+dataLast+')',colC[cy]-colCh[cy],nf);
+  });
+  fc(ws2,row,totColI,'SUM('+L(totColI)+dataFirst+':'+L(totColI)+dataLast+')',grandCredit-grandChug,nf);
+  totRow(ws2,row,mCols);
+
+  ws2.columns.forEach((col,i)=>{col.width=i===0?18:13;});
+
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  saveAs(blob,'통합고용세액공제_계산내역_'+corp+'.xlsx');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 초기화
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+calc_initSelectors();
+calc_buildInput();
+// localStorage에 명세서 데이터가 있으면 자동으로 가져오기
+calc_loadFromSpec(true);
+calc_recalcAll();
+</script>
+
+</body>
+</html>
