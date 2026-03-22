@@ -999,7 +999,6 @@ function readExcel(file, key, fname) {
       }
 
       renderCheckboxes();
-      if (empData.cur || empData.prev) specCalculate();
       return;
     }
 
@@ -1026,8 +1025,6 @@ function readExcel(file, key, fname) {
       });
     }
     renderCheckboxes();
-
-    if (empData.cur || empData.prev) specCalculate();
   };
   reader.readAsBinaryString(file);
 }
