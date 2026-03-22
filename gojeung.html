@@ -57,16 +57,54 @@
   .app-header .sub { font-size: 11px; opacity: .75; margin-top: 2px; }
 
   .nav-btns { display: flex; gap: 8px; align-items: center; }
-  .nav-btns a, .nav-btns button.nav-link {
+  .nav-btns button.nav-link {
     padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
     text-decoration: none; transition: all .15s; cursor: pointer;
     font-family: var(--font);
+    background: transparent; color: rgba(255,255,255,.85); border: 2px solid rgba(255,255,255,.4);
   }
-  .nav-btns a { background: transparent; color: rgba(255,255,255,.85); border: 2px solid rgba(255,255,255,.4); }
-  .nav-btns a:hover { background: rgba(255,255,255,.15); }
-  .nav-btns button.nav-link { background: transparent; color: rgba(255,255,255,.85); border: 2px solid rgba(255,255,255,.4); }
   .nav-btns button.nav-link:hover { background: rgba(255,255,255,.15); }
   .nav-btns button.nav-link.active { background: #fff; color: #2c5f2d; border: 2px solid #fff; }
+
+  /* 제도 이동 버튼 */
+  .switch-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    text-decoration: none; transition: all .2s; cursor: pointer;
+    background: #fff; color: #1a4fa8; border: 2px solid #fff;
+    margin-left: 8px; letter-spacing: .3px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  }
+  .switch-btn:hover { background: #e8eef8; border-color: #e8eef8; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.2); }
+
+  /* 테마 토글 */
+  .theme-btn {
+    padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600;
+    cursor: pointer; border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.8); transition: all .15s; margin-left: 4px;
+  }
+  .theme-btn:hover { background: rgba(255,255,255,.25); }
+
+  /* 연노란 테마 */
+  body.theme-warm {
+    --bg: #faf6ee; --surface: #fffdf8; --surface2: #f8f4eb;
+    --border: #d9cdb3; --text: #3a3020; --text-muted: #7a6a50;
+    --accent: #5a7a30; --accent-light: #eef4e0; --accent2: #5a7a30; --accent2-light: #eef4e0;
+    --warn: #b83a1a; --warn-light: #fdf0ea; --orange: #c87020; --orange-light: #fef4e0;
+  }
+  body.theme-warm .app-header { background: #6a7a20; box-shadow: 0 2px 12px rgba(106,122,32,.3); }
+  body.theme-warm .main-tabs { background: #5a6a18; }
+  body.theme-warm .main-tab-btn.active { color: #5a7a30; border-bottom-color: #5a7a30; }
+  body.theme-warm .nav-btns button.nav-link.active { color: #6a7a20 !important; }
+  body.theme-warm .switch-btn { color: #1a4fa8; }
+  body.theme-warm .tl-title-badge { background: #6a7a20; }
+  body.theme-warm .tl-card.c-danggi { border-color: #6a7a20; background: linear-gradient(135deg, #eef4e0, #f4f8ec); }
+  body.theme-warm .progress-fill { background: linear-gradient(90deg, #6a7a20, #5a7a30); }
+  body.theme-warm .matrix th { background: #6a7a20; border-color: #6a7a20; }
+  body.theme-warm .matrix tr.row-total td { background: #6a7a20; border-color: #6a7a20; }
+  body.theme-warm .matrix tr.row-total td.lbl { background: #6a7a20; }
+  body.theme-warm .matrix td.col-total { background: var(--accent-light); color: #5a7a30; }
+  body.theme-warm .highlight-box { background: #6a7a20; }
+  body.theme-warm .panel-header { color: #5a7a30; }
 
   /* ── MAIN TAB BAR ──────────────────────── */
   .main-tabs {
@@ -529,9 +567,10 @@
     <div class="sub">조세특례제한법 제29조의7 | 고용을 증대시킨 기업에 대한 세액공제</div>
   </div>
   <div class="nav-btns">
-    <a href="index.html">통합고용</a>
-    <button class="nav-link active" onclick="switchMainTab('tab-spec')">고용증대 명세서</button>
-    <button class="nav-link" onclick="switchMainTab('tab-calc')">고용증대 계산</button>
+    <button class="nav-link active" onclick="switchMainTab('tab-spec')">명세서</button>
+    <button class="nav-link" onclick="switchMainTab('tab-calc')">계산</button>
+    <a href="index.html" class="switch-btn">통합고용 →</a>
+    <button class="theme-btn" onclick="toggleTheme()">테마</button>
   </div>
 </div>
 
@@ -815,6 +854,12 @@ function switchMainTab(tabId) {
 
 // Shared data object: 명세서 → 계산기 data transfer
 window.specData = null;
+
+function toggleTheme() {
+  document.body.classList.toggle('theme-warm');
+  localStorage.setItem('theme', document.body.classList.contains('theme-warm') ? 'warm' : 'default');
+}
+if (localStorage.getItem('theme') === 'warm') document.body.classList.add('theme-warm');
 
 
 // ═══════════════════════════════════════════
