@@ -655,7 +655,10 @@
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn-print no-print" onclick="window.print()">🖨 인쇄</button>
         <button class="btn-download no-print" id="btn-excel" onclick="specDownloadExcel()" disabled>
-          <span class="dl-icon">⬇</span> 엑셀 다운로드
+          <span class="dl-icon">⬇</span> 명세서 다운로드
+        </button>
+        <button class="btn-download no-print" id="btn-simple" onclick="specDownloadSimple()" disabled style="background:#2980b9;">
+          <span class="dl-icon">⬇</span> 간략표 다운로드
         </button>
       </div>
 
@@ -1717,6 +1720,7 @@ window.specCalculate = function() {
 
   window._lastResult = { curProcessed, prevProcessed, curAgg, prevAgg, taxYear };
   document.getElementById('btn-excel').disabled = false;
+  document.getElementById('btn-simple').disabled = false;
 
   // localStorage에 저장 → 기존 calc_test.html 호환용
   localStorage.setItem('gojeung_' + taxYear, JSON.stringify({
@@ -2112,7 +2116,7 @@ window.specDownloadExcel = async function() {
     const GREEN = 'FFD6F5E0';
     const EXCL  = 'FFFFF2F2';
     const YOUTH = 'FFF0FFF5';
-    const thin  = {style:'thin', color:{argb:'FFB0B0B0'}};
+    const thin  = {style:'thin', color:{argb:'FF000000'}};
     const AB    = {top:thin, left:thin, bottom:thin, right:thin};
 
     ws.pageSetup = Object.assign(ws.pageSetup || {}, {
@@ -2405,7 +2409,232 @@ window.specDownloadExcel = async function() {
     alert('엑셀 생성 중 오류가 발생했습니다.\n' + e.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<span class="dl-icon">⬇</span> 엑셀 다운로드';
+    btn.innerHTML = '<span class="dl-icon">⬇</span> 명세서 다운로드';
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SIMPLE TABLE DOWNLOAD (ExcelJS)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+window.specDownloadSimple = async function() {
+  if (!window._lastResult) return;
+  const { curProcessed, prevProcessed, taxYear } = window._lastResult;
+  const companyName = document.getElementById('company-name').value || '';
+  const bizNo       = document.getElementById('biz-no').value || '';
+  const corpType    = document.getElementById('spec-corp-type').value || '중소';
+
+  const btn = document.getElementById('btn-simple');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="dl-icon">⏳</span> 생성 중...';
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    const thin = {style:'thin', color:{argb:'FF000000'}};
+    const AB   = {top:thin, left:thin, bottom:thin, right:thin};
+    const GRAY  = 'FFE8ECF0';
+    const WHITE = 'FFFFFFFF';
+    const EXCL  = 'FFFFF2F2';
+    const YOUTH = 'FFF0FFF5';
+    const BLUE  = 'FF1a4fa8';
+    const GREEN = 'FFF2F2F2';
+
+    function makeSheet(ws, employees, sheetYear, label) {
+      ws.views = [{showGridLines: true}];
+      ws.pageSetup = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+
+      [10, 8, 10, 7.5, 7.5, 7, 7, 10, 8, 9, 9, 7, 7, 7]
+        .forEach(function(w,i){ ws.getColumn(i+1).width = w; });
+
+      function SC(r, c, val, opts) {
+        var o = opts || {};
+        var cell = ws.getCell(r, c);
+        cell.value = val;
+        cell.font = {name:'맑은 고딕', size: o.sz||9, bold:!!o.bold, color: o.color ? {argb:o.color} : undefined};
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb: o.bg||WHITE}};
+        cell.alignment = {horizontal: o.halign||'center', vertical:'middle', wrapText:true};
+        cell.border = AB;
+        if (o.numFmt) cell.numFmt = o.numFmt;
+      }
+      function FC(r, c, formula, numFmt) {
+        var cell = ws.getCell(r, c);
+        cell.value = {formula: formula};
+        cell.border = AB;
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:WHITE}};
+        cell.alignment = {horizontal:'center', vertical:'middle'};
+        cell.font = {name:'맑은 고딕', size:9};
+        if (numFmt) cell.numFmt = numFmt;
+      }
+
+      // Row 1: 제목
+      ws.getRow(1).height = 28;
+      SC(1,1, companyName + '  ' + label + '  (' + sheetYear + ')', {bold:true, sz:12, halign:'left'});
+      ws.mergeCells(1,1,1,14);
+
+      // Row 2: 기본정보
+      ws.getRow(2).height = 20;
+      SC(2,1, '사업자번호', {bg:GRAY, bold:true});
+      SC(2,2, bizNo, {halign:'left'});
+      ws.mergeCells(2,2,2,4);
+      SC(2,5, '법인구분', {bg:GRAY, bold:true});
+      SC(2,6, corpType);
+      ws.mergeCells(2,6,2,7);
+      SC(2,8, '과세연도', {bg:GRAY, bold:true});
+      SC(2,9, sheetYear + '.01.01 ~ ' + sheetYear + '.12.31', {halign:'left'});
+      ws.mergeCells(2,9,2,14);
+
+      // Row 4: 집계 헤더
+      ws.getRow(4).height = 22;
+      SC(4,1, '구분', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      ws.mergeCells(4,1,4,2);
+      SC(4,3, '총 근무개월합', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,4, '상시근로자수', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,5, '청년 개월합', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,6, '장애인 개월합', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,7, '고령자 개월합', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,8, '청년등 합계', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,9, '청년등 인원', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(4,10, '청년등외 인원', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      for (var cc=11; cc<=14; cc++) SC(4,cc,'',{bg:BLUE});
+
+      // Row 5: 집계 수식
+      var DR = 10;
+      var DS = 11;
+      var DE = DS + Math.max(employees.length, 1) - 1;
+
+      ws.getRow(5).height = 22;
+      SC(5,1, label, {bold:true, bg:GREEN});
+      ws.mergeCells(5,1,5,2);
+      FC(5,3, 'SUM(J'+DS+':J'+DE+')+SUM(K'+DS+':K'+DE+')', '0');
+      ws.getCell(5,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,4, 'C5/12', '0.00');
+      ws.getCell(5,4).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,5, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(M'+DS+':M'+DE+'<>"Y")*(N'+DS+':N'+DE+'<>"Y")*K'+DS+':K'+DE+')', '0');
+      ws.getCell(5,5).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,6, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(M'+DS+':M'+DE+'="Y")*(J'+DS+':J'+DE+'+K'+DS+':K'+DE+'))', '0');
+      ws.getCell(5,6).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,7, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(N'+DS+':N'+DE+'="Y")*(J'+DS+':J'+DE+'+K'+DS+':K'+DE+'))', '0');
+      ws.getCell(5,7).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,8, 'SUM(E5:G5)', '0');
+      ws.getCell(5,8).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,9, 'H5/12', '0.00');
+      ws.getCell(5,9).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(5,10, 'D5-I5', '0.00');
+      ws.getCell(5,10).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      for (var cc=11; cc<=14; cc++) SC(5,cc,'',{bg:GREEN});
+
+      // Row 6: 4-way breakdown header (청년등 수도권/비수도권, 비청년등 수도권/비수도권)
+      ws.getRow(6).height = 22;
+      SC(6,1, '구분', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      ws.mergeCells(6,1,6,2);
+      SC(6,3, '청년등 수도권', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(6,4, '청년등 비수도권', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(6,5, '비청년등 수도권', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      SC(6,6, '비청년등 비수도권', {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      for (var cc=7; cc<=14; cc++) SC(6,cc,'',{bg:BLUE});
+
+      // Row 7: 4-way breakdown data (SUMPRODUCT formulas / 12)
+      ws.getRow(7).height = 22;
+      SC(7,1, label, {bold:true, bg:GREEN});
+      ws.mergeCells(7,1,7,2);
+      FC(7,3, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'="Y")*K'+DS+':K'+DE+')/12', '0.00');
+      ws.getCell(7,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(7,4, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'<>"Y")*K'+DS+':K'+DE+')/12', '0.00');
+      ws.getCell(7,4).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(7,5, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'="Y")*J'+DS+':J'+DE+')/12', '0.00');
+      ws.getCell(7,5).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      FC(7,6, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'<>"Y")*J'+DS+':J'+DE+')/12', '0.00');
+      ws.getCell(7,6).fill = {type:'pattern',pattern:'solid',fgColor:{argb:GREEN}};
+      for (var cc=7; cc<=14; cc++) SC(7,cc,'',{bg:GREEN});
+
+      // Row 10: 직원 리스트 헤더
+      ws.getRow(DR).height = 36;
+      var headers = [
+        'A: 생년월일','B: 성명','C: 상시근로자','D: 제외사유','E: 단시간유형',
+        'F: 내국인','G: 수도권','H: 입사일','I: 근로기간',
+        'J: 청년등외\n근무개월','K: 청년등\n근무개월','L: 청년','M: 장애인','N: 고령자'
+      ];
+      headers.forEach(function(h,i){
+        SC(DR, i+1, h, {bg:BLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      });
+
+      // 데이터 행
+      var yearStart = sheetYear + '0101';
+      var yearEnd   = sheetYear + '1231';
+
+      employees.forEach(function(emp, idx) {
+        var r = DS + idx;
+        ws.getRow(r).height = 18;
+        var excluded = emp.regular === 'N';
+        var isYouth  = !excluded && emp.isYouthYear === 'Y';
+        var bg = excluded ? EXCL : (isYouth ? YOUTH : WHITE);
+
+        SC(r,1, emp.birthStr||'', {bg:bg});
+        SC(r,2, emp.name, {bg:bg, halign:'left'});
+        FC(r,3, 'IF(D'+r+'="","Y","N")', null);
+        ws.getCell(r,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+        ws.getCell(r,3).font = {name:'맑은 고딕',size:9,bold:true, color:{argb: emp.regular==='Y'?'FF0E7C61':'FFCCCCCC'}};
+        SC(r,4, emp.reason||'', {bg:bg, color: emp.reason?'FFC0392B':null});
+        SC(r,5, emp.shortTimeType||'', {bg:bg});
+        SC(r,6, emp.domestic, {bg:bg, bold:emp.domestic==='Y', color:emp.domestic==='Y'?'FF0E7C61':'FFCCCCCC'});
+        SC(r,7, emp.metro, {bg:bg, bold:emp.metro==='Y', color:emp.metro==='Y'?'FF0E7C61':'FFCCCCCC'});
+        SC(r,8, emp.hireStr||'', {bg:bg});
+        SC(r,9, emp.workPeriod||'', {bg:bg});
+        SC(r,12, emp.isYouthYear, {bg:bg, bold:emp.isYouthYear==='Y', color:emp.isYouthYear==='Y'?'FF0E7C61':'FFCCCCCC'});
+        SC(r,13, emp.isDisabled, {bg:bg, bold:emp.isDisabled==='Y', color:emp.isDisabled==='Y'?'FF0E7C61':'FFCCCCCC'});
+        SC(r,14, emp.elderlyAtHire?'Y':'N', {bg:bg, bold:emp.elderlyAtHire, color:emp.elderlyAtHire?'FF0E7C61':'FFCCCCCC'});
+
+        var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
+        var age30F = '(LEFT(A'+r+',4)+30)*10000+VALUE(RIGHT(A'+r+',4))';
+        FC(r,11,
+          'IF(C'+r+'<>"Y",0,' +
+            'IF(OR(M'+r+'="Y",N'+r+'="Y"),'+totalF+',' +
+              'IF(L'+r+'<>"Y",0,' +
+                'IF(A'+r+'="",0,' +
+                  'IF('+age30F+'<='+yearStart+',0,' +
+                    'IF('+age30F+'>'+yearEnd+','+totalF+',' +
+                      'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age30F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                    ')' +
+                  ')' +
+                ')' +
+              ')' +
+            ')' +
+          ')',
+          '0');
+        ws.getCell(r,11).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+        FC(r,10, totalF+'-K'+r, '0');
+        ws.getCell(r,10).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+      });
+
+      // 드롭다운
+      var ynValidation = {type:'list', allowBlank:true, formulae:['"Y,N"']};
+      var reasonValidation = {type:'list', allowBlank:true, formulae:['"ⓐ 근로계약1년미만,ⓑ 단시간,ⓒ 임원,ⓓ 최대주주·친족,ⓔ 원천징수미확인,ⓕ 기타"']};
+      var shortTimeValidation = {type:'list', allowBlank:true, formulae:['"0.5,0.75"']};
+      for (var r = DS; r <= DE; r++) {
+        [6,7,12,13,14].forEach(function(c){ ws.getCell(r,c).dataValidation = ynValidation; });
+        ws.getCell(r,4).dataValidation = reasonValidation;
+        ws.getCell(r,5).dataValidation = shortTimeValidation;
+      }
+    }
+
+    // 당기 시트
+    var wsCur = wb.addWorksheet('당기 (' + taxYear + ')');
+    makeSheet(wsCur, curProcessed, String(taxYear), '해당과세연도');
+
+    // 직전 시트
+    var wsPrev = wb.addWorksheet('직전 (' + (taxYear-1) + ')');
+    makeSheet(wsPrev, prevProcessed, String(taxYear-1), '직전과세연도');
+
+    // 다운로드
+    var buf  = await wb.xlsx.writeBuffer();
+    var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    saveAs(blob, '고용증대_간략표_'+taxYear+'.xlsx');
+
+  } catch(e) {
+    console.error(e);
+    alert('간략표 생성 중 오류가 발생했습니다.\n' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="dl-icon">⬇</span> 간략표 다운로드';
   }
 };
 
@@ -2482,16 +2711,33 @@ function maxZ(w) { return { ym: Math.max(0,w.ym), yl: Math.max(0,w.yl), nm: Math
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calcDanggi(corp, diff, startY) {
   const r = getRates(corp, startY);
+  // ① 지역별 cap (수도권/비수도권 각각, 청년 우선)
   const metroDiff = diff.ym + diff.nm;
   const localDiff = diff.yl + diff.nl;
   const metroCap = Math.max(0, metroDiff);
   const localCap = Math.max(0, localDiff);
   const rawYm = Math.max(0, diff.ym), rawNm = Math.max(0, diff.nm);
   const rawYl = Math.max(0, diff.yl), rawNl = Math.max(0, diff.nl);
-  const capYm = Math.min(rawYm, metroCap);
-  const capNm = Math.min(rawNm, metroCap - capYm);
-  const capYl = Math.min(rawYl, localCap);
-  const capNl = Math.min(rawNl, localCap - capYl);
+  let capYm = Math.min(rawYm, metroCap);
+  let capNm = Math.min(rawNm, metroCap - capYm);
+  let capYl = Math.min(rawYl, localCap);
+  let capNl = Math.min(rawNl, localCap - capYl);
+  // ② 전체 상시근로자 증가분 최종 cap (공제단가 큰 순서로 배정)
+  const totalCap = Math.max(0, metroDiff + localDiff);
+  const regionSum = rp2(capYm + capYl + capNm + capNl);
+  if (regionSum > totalCap && regionSum > 0) {
+    // 단가순: 청년지방(local) > 청년수도(metro) > 비청년지방 > 비청년수도
+    const order = [
+      { key:'yl', val:capYl, rate:r.youth.local },
+      { key:'ym', val:capYm, rate:r.youth.metro },
+      { key:'nl', val:capNl, rate:r.normal.local },
+      { key:'nm', val:capNm, rate:r.normal.metro },
+    ].sort((a,b) => b.rate - a.rate);
+    let remain = totalCap;
+    const result = {};
+    order.forEach(o => { result[o.key] = rp2(Math.min(o.val, remain)); remain = rp2(remain - result[o.key]); });
+    capYm = result.ym; capYl = result.yl; capNm = result.nm; capNl = result.nl;
+  }
   const inc = { ym: truncW(capYm), yl: truncW(capYl), nm: truncW(capNm), nl: truncW(capNl) };
   const amt = { ym: truncAmt(inc.ym*r.youth.metro), yl: truncAmt(inc.yl*r.youth.local), nm: truncAmt(inc.nm*r.normal.metro), nl: truncAmt(inc.nl*r.normal.local) };
   return { inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl };
@@ -2597,8 +2843,8 @@ function sahuBadge(type) {
 function initSelectors() {
   const sf = document.getElementById('year-from');
   const st = document.getElementById('year-to');
-  for (let y=2018; y<=2024; y++) { const o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===2019) o.selected=true; sf.appendChild(o); }
-  for (let y=2019; y<=2025; y++) { const o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===2024) o.selected=true; st.appendChild(o); }
+  for (let y=2017; y<=2024; y++) { const o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===2019) o.selected=true; sf.appendChild(o); }
+  for (let y=2018; y<=2025; y++) { const o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===2024) o.selected=true; st.appendChild(o); }
 }
 
 function saveVals() { document.querySelectorAll('#calc-input-area input[type=number]').forEach(e => { saved[e.id]=e.value; }); }
@@ -3034,13 +3280,13 @@ window.calcExportExcel = async function() {
   const L = i => String.fromCharCode(65+i);
 
   const C = {
-    dark:'FF1B5E20', pri:'FF2E7D32', mid:'FF43A047',
-    light:'FFE8F5E9', pale:'FFF1F8E9',
+    dark:'FF0D1B2A', pri:'FF1a4fa8', mid:'FF1a4fa8',
+    light:'FFF2F2F2', pale:'FFF8F8F8',
     white:'FFFFFFFF', black:'FF1A1A2E', muted:'FF556688', red:'FFC0392B',
   };
   const Fn = (sz,bold,color) => ({ name:'맑은 고딕', size:sz||10, bold:!!bold, color:color?{argb:color}:{argb:C.black} });
   const fl = argb => ({ type:'pattern', pattern:'solid', fgColor:{argb} });
-  const bd = { top:{style:'thin',color:{argb:'FFA5D6A7'}}, bottom:{style:'thin',color:{argb:'FFA5D6A7'}}, left:{style:'thin',color:{argb:'FFA5D6A7'}}, right:{style:'thin',color:{argb:'FFA5D6A7'}} };
+  const bd = { top:{style:'thin',color:{argb:'FF000000'}}, bottom:{style:'thin',color:{argb:'FF000000'}}, left:{style:'thin',color:{argb:'FF000000'}}, right:{style:'thin',color:{argb:'FF000000'}} };
   const nf = '#,##0', nf2 = '#,##0.00';
 
   function initWs(ws) { ws.views = [{ showGridLines: false }]; }
@@ -3058,6 +3304,180 @@ window.calcExportExcel = async function() {
   }
   function stripe(ws, rn, cnt, even) { if(!even) return; for(let i=0;i<cnt;i++){const c=ws.getCell(L(i)+rn); if(!c.fill||!c.fill.fgColor) c.fill=fl(C.light);} }
   function totRow(ws, rn, cnt) { for(let i=0;i<cnt;i++){const c=ws.getCell(L(i)+rn); c.fill=fl(C.mid); c.font=Fn(10,true,C.white); c.border=bd; c.alignment={vertical:'middle',horizontal:typeof c.value==='number'||typeof c.value==='object'?'right':'left'};} ws.getRow(rn).height=22; }
+
+  // ── 간략표 시트 추가 (명세서 데이터가 있을 때) ──
+  const hasSpec = !!window._lastResult;
+  if (hasSpec) {
+    const { curProcessed, prevProcessed, taxYear: specTaxYear } = window._lastResult;
+    const specCompany = document.getElementById('company-name').value || '';
+    const specBizNo   = document.getElementById('biz-no').value || '';
+    const specCorpType = document.getElementById('spec-corp-type').value || '중소';
+    const sThin = {style:'thin', color:{argb:'FF000000'}};
+    const sAB   = {top:sThin, left:sThin, bottom:sThin, right:sThin};
+    const sGRAY  = 'FFE8ECF0';
+    const sWHITE = 'FFFFFFFF';
+    const sEXCL  = 'FFFFF2F2';
+    const sYOUTH = 'FFF0FFF5';
+    const sBLUE  = 'FF1a4fa8';
+    const sGREEN = 'FFF2F2F2';
+
+    function buildSimpleSheet(ws, employees, sheetYear, label) {
+      ws.views = [{showGridLines: true}];
+      ws.pageSetup = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+      [10, 8, 10, 7.5, 7.5, 7, 7, 10, 8, 9, 9, 7, 7, 7]
+        .forEach(function(w,i){ ws.getColumn(i+1).width = w; });
+      function sSC(r, c, val, opts) {
+        var o = opts || {};
+        var cell = ws.getCell(r, c);
+        cell.value = val;
+        cell.font = {name:'맑은 고딕', size: o.sz||9, bold:!!o.bold, color: o.color ? {argb:o.color} : undefined};
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb: o.bg||sWHITE}};
+        cell.alignment = {horizontal: o.halign||'center', vertical:'middle', wrapText:true};
+        cell.border = sAB;
+        if (o.numFmt) cell.numFmt = o.numFmt;
+      }
+      function sFC(r, c, formula, numFmt) {
+        var cell = ws.getCell(r, c);
+        cell.value = {formula: formula};
+        cell.border = sAB;
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:sWHITE}};
+        cell.alignment = {horizontal:'center', vertical:'middle'};
+        cell.font = {name:'맑은 고딕', size:9};
+        if (numFmt) cell.numFmt = numFmt;
+      }
+      ws.getRow(1).height = 28;
+      sSC(1,1, specCompany + '  ' + label + '  (' + sheetYear + ')', {bold:true, sz:12, halign:'left'});
+      ws.mergeCells(1,1,1,14);
+      ws.getRow(2).height = 20;
+      sSC(2,1, '사업자번호', {bg:sGRAY, bold:true});
+      sSC(2,2, specBizNo, {halign:'left'});
+      ws.mergeCells(2,2,2,4);
+      sSC(2,5, '법인구분', {bg:sGRAY, bold:true});
+      sSC(2,6, specCorpType);
+      ws.mergeCells(2,6,2,7);
+      sSC(2,8, '과세연도', {bg:sGRAY, bold:true});
+      sSC(2,9, sheetYear + '.01.01 ~ ' + sheetYear + '.12.31', {halign:'left'});
+      ws.mergeCells(2,9,2,14);
+      ws.getRow(4).height = 22;
+      sSC(4,1, '구분', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      ws.mergeCells(4,1,4,2);
+      sSC(4,3, '총 근무개월합', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,4, '상시근로자수', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,5, '청년 개월합', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,6, '장애인 개월합', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,7, '고령자 개월합', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,8, '청년등 합계', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,9, '청년등 인원', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(4,10, '청년등외 인원', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      for (var cc=11; cc<=14; cc++) sSC(4,cc,'',{bg:sBLUE});
+      var DR = 10, DS = 11;
+      var DE = DS + Math.max(employees.length, 1) - 1;
+      ws.getRow(5).height = 22;
+      sSC(5,1, label, {bold:true, bg:sGREEN});
+      ws.mergeCells(5,1,5,2);
+      sFC(5,3, 'SUM(J'+DS+':J'+DE+')+SUM(K'+DS+':K'+DE+')', '0');
+      ws.getCell(5,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,4, 'C5/12', '0.00');
+      ws.getCell(5,4).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,5, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(M'+DS+':M'+DE+'<>"Y")*(N'+DS+':N'+DE+'<>"Y")*K'+DS+':K'+DE+')', '0');
+      ws.getCell(5,5).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,6, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(M'+DS+':M'+DE+'="Y")*(J'+DS+':J'+DE+'+K'+DS+':K'+DE+'))', '0');
+      ws.getCell(5,6).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,7, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(N'+DS+':N'+DE+'="Y")*(J'+DS+':J'+DE+'+K'+DS+':K'+DE+'))', '0');
+      ws.getCell(5,7).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,8, 'SUM(E5:G5)', '0');
+      ws.getCell(5,8).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,9, 'H5/12', '0.00');
+      ws.getCell(5,9).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(5,10, 'D5-I5', '0.00');
+      ws.getCell(5,10).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      for (var cc=11; cc<=14; cc++) sSC(5,cc,'',{bg:sGREEN});
+      // Row 6-7: 4-way breakdown
+      ws.getRow(6).height = 22;
+      sSC(6,1, '구분', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      ws.mergeCells(6,1,6,2);
+      sSC(6,3, '청년등 수도권', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(6,4, '청년등 비수도권', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(6,5, '비청년등 수도권', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      sSC(6,6, '비청년등 비수도권', {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      for (var cc=7; cc<=14; cc++) sSC(6,cc,'',{bg:sBLUE});
+      ws.getRow(7).height = 22;
+      sSC(7,1, label, {bold:true, bg:sGREEN});
+      ws.mergeCells(7,1,7,2);
+      sFC(7,3, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'="Y")*K'+DS+':K'+DE+')/12', '0.00');
+      ws.getCell(7,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(7,4, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'<>"Y")*K'+DS+':K'+DE+')/12', '0.00');
+      ws.getCell(7,4).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(7,5, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'="Y")*J'+DS+':J'+DE+')/12', '0.00');
+      ws.getCell(7,5).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      sFC(7,6, 'SUMPRODUCT((C'+DS+':C'+DE+'="Y")*(G'+DS+':G'+DE+'<>"Y")*J'+DS+':J'+DE+')/12', '0.00');
+      ws.getCell(7,6).fill = {type:'pattern',pattern:'solid',fgColor:{argb:sGREEN}};
+      for (var cc=7; cc<=14; cc++) sSC(7,cc,'',{bg:sGREEN});
+      // Data header row
+      ws.getRow(DR).height = 36;
+      var headers = [
+        'A: 생년월일','B: 성명','C: 상시근로자','D: 제외사유','E: 단시간유형',
+        'F: 내국인','G: 수도권','H: 입사일','I: 근로기간',
+        'J: 청년등외\n근무개월','K: 청년등\n근무개월','L: 청년','M: 장애인','N: 고령자'
+      ];
+      headers.forEach(function(h,i){
+        sSC(DR, i+1, h, {bg:sBLUE, bold:true, sz:8, color:'FFFFFFFF'});
+      });
+      var yearStart = sheetYear + '0101';
+      var yearEnd   = sheetYear + '1231';
+      employees.forEach(function(emp, idx) {
+        var r = DS + idx;
+        ws.getRow(r).height = 18;
+        var excluded = emp.regular === 'N';
+        var isYouth  = !excluded && emp.isYouthYear === 'Y';
+        var bg = excluded ? sEXCL : (isYouth ? sYOUTH : sWHITE);
+        sSC(r,1, emp.birthStr||'', {bg:bg});
+        sSC(r,2, emp.name, {bg:bg, halign:'left'});
+        sFC(r,3, 'IF(D'+r+'="","Y","N")', null);
+        ws.getCell(r,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+        ws.getCell(r,3).font = {name:'맑은 고딕',size:9,bold:true, color:{argb: emp.regular==='Y'?'FF0E7C61':'FFCCCCCC'}};
+        sSC(r,4, emp.reason||'', {bg:bg, color: emp.reason?'FFC0392B':null});
+        sSC(r,5, emp.shortTimeType||'', {bg:bg});
+        sSC(r,6, emp.domestic, {bg:bg, bold:emp.domestic==='Y', color:emp.domestic==='Y'?'FF0E7C61':'FFCCCCCC'});
+        sSC(r,7, emp.metro, {bg:bg, bold:emp.metro==='Y', color:emp.metro==='Y'?'FF0E7C61':'FFCCCCCC'});
+        sSC(r,8, emp.hireStr||'', {bg:bg});
+        sSC(r,9, emp.workPeriod||'', {bg:bg});
+        sSC(r,12, emp.isYouthYear, {bg:bg, bold:emp.isYouthYear==='Y', color:emp.isYouthYear==='Y'?'FF0E7C61':'FFCCCCCC'});
+        sSC(r,13, emp.isDisabled, {bg:bg, bold:emp.isDisabled==='Y', color:emp.isDisabled==='Y'?'FF0E7C61':'FFCCCCCC'});
+        sSC(r,14, emp.elderlyAtHire?'Y':'N', {bg:bg, bold:emp.elderlyAtHire, color:emp.elderlyAtHire?'FF0E7C61':'FFCCCCCC'});
+        var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
+        var age30F = '(LEFT(A'+r+',4)+30)*10000+VALUE(RIGHT(A'+r+',4))';
+        sFC(r,11,
+          'IF(C'+r+'<>"Y",0,' +
+            'IF(OR(M'+r+'="Y",N'+r+'="Y"),'+totalF+',' +
+              'IF(L'+r+'<>"Y",0,' +
+                'IF(A'+r+'="",0,' +
+                  'IF('+age30F+'<='+yearStart+',0,' +
+                    'IF('+age30F+'>'+yearEnd+','+totalF+',' +
+                      'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age30F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                    ')' +
+                  ')' +
+                ')' +
+              ')' +
+            ')' +
+          ')',
+          '0');
+        ws.getCell(r,11).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+        sFC(r,10, totalF+'-K'+r, '0');
+        ws.getCell(r,10).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+      });
+    }
+    const wsCurSimple = wb.addWorksheet('명세_당기');
+    buildSimpleSheet(wsCurSimple, curProcessed, String(specTaxYear), '해당과세연도');
+    const wsPrevSimple = wb.addWorksheet('명세_직전');
+    buildSimpleSheet(wsPrevSimple, prevProcessed, String(specTaxYear - 1), '직전과세연도');
+  }
+
+  // ── 명세서 연도 매핑 (수식 참조용) ──
+  const specTaxY = hasSpec ? window._lastResult.taxYear : null;
+  const specPrevY = specTaxY ? specTaxY - 1 : null;
+  // 간략표 Row 7: C=청년등수도권, D=청년등비수도권, E=비청년등수도권, F=비청년등비수도권
+  function specRef(sheetName, col) { return "'" + sheetName + "'!" + col + "7"; }
 
   // ── 시작연도별 산출내역 시트 ──
   lastAll.forEach(({startY, danggi, tl}) => {
@@ -3109,13 +3529,28 @@ window.calcExportExcel = async function() {
     hdrRow(ws, r2, wHdr);
     r2++;
 
+    // ── 상시근로자수 테이블: 명세 시트 매칭 연도는 수식 참조 ──
     tl.forEach((item,idx) => {
       const w=getW(startY,item.year);
       dc(ws,r2,0,item.year+'년'); dc(ws,r2,1,item.role);
       let ci=2;
-      if(isS){dc(ws,r2,ci++,w.ym,nf2);dc(ws,r2,ci++,w.yl,nf2);dc(ws,r2,ci++,w.nm,nf2);dc(ws,r2,ci++,w.nl,nf2);}
-      else if(hasN){dc(ws,r2,ci++,rp2(w.ym+w.yl),nf2);dc(ws,r2,ci++,rp2(w.nm+w.nl),nf2);}
-      else{dc(ws,r2,ci++,rp2(w.ym+w.yl),nf2);}
+      // 명세서 매칭 여부 확인
+      const matchSheet = hasSpec && (item.year === specTaxY ? '명세_당기' : (item.year === specPrevY ? '명세_직전' : null));
+      if (matchSheet && isS) {
+        fc(ws,r2,ci++,specRef(matchSheet,'C'),w.ym,nf2);
+        fc(ws,r2,ci++,specRef(matchSheet,'D'),w.yl,nf2);
+        fc(ws,r2,ci++,specRef(matchSheet,'E'),w.nm,nf2);
+        fc(ws,r2,ci++,specRef(matchSheet,'F'),w.nl,nf2);
+      } else if (matchSheet && hasN) {
+        fc(ws,r2,ci++,specRef(matchSheet,'C')+'+'+specRef(matchSheet,'D'),rp2(w.ym+w.yl),nf2);
+        fc(ws,r2,ci++,specRef(matchSheet,'E')+'+'+specRef(matchSheet,'F'),rp2(w.nm+w.nl),nf2);
+      } else if (matchSheet) {
+        fc(ws,r2,ci++,specRef(matchSheet,'C')+'+'+specRef(matchSheet,'D'),rp2(w.ym+w.yl),nf2);
+      } else {
+        if(isS){dc(ws,r2,ci++,w.ym,nf2);dc(ws,r2,ci++,w.yl,nf2);dc(ws,r2,ci++,w.nm,nf2);dc(ws,r2,ci++,w.nl,nf2);}
+        else if(hasN){dc(ws,r2,ci++,rp2(w.ym+w.yl),nf2);dc(ws,r2,ci++,rp2(w.nm+w.nl),nf2);}
+        else{dc(ws,r2,ci++,rp2(w.ym+w.yl),nf2);}
+      }
       const sumFrom=L(2)+r2, sumTo=L(wTotCI-1)+r2;
       fc(ws,r2,wTotCI,'SUM('+sumFrom+':'+sumTo+')',rp2(totalW(w)),nf2);
       stripe(ws,r2,wHdr.length,idx%2===1);
@@ -3135,13 +3570,31 @@ window.calcExportExcel = async function() {
     r2++;
     const calcFirst = r2;
 
+    // ── 증감 인원: 당기 시작연도가 명세서 당기연도와 같으면 수식 ──
+    const canFormula = hasSpec && (startY === specTaxY);
     let dIdx=0;
     tl.forEach(item => {
       if(item.role==='전기') return;
       dc(ws,r2,0,item.year+'년'); dc(ws,r2,1,item.role);
       let ci=2;
       const yDec = item.addtl && item.addtl.youthDec;
-      if(item.role==='당기'){
+      // 당기 또는 추가공제: 증감 = 당기 - 직전 (수식)
+      if (canFormula && (item.role==='당기' || item.addtl)) {
+        if(isS){
+          fc(ws,r2,ci++,specRef('명세_당기','C')+'-'+specRef('명세_직전','C'), item.role==='당기'?danggi.inc.ym:(item.addtl?item.addtl.inc.ym:0), nf2);
+          fc(ws,r2,ci++,specRef('명세_당기','D')+'-'+specRef('명세_직전','D'), item.role==='당기'?danggi.inc.yl:(item.addtl?item.addtl.inc.yl:0), nf2);
+          fc(ws,r2,ci++,specRef('명세_당기','E')+'-'+specRef('명세_직전','E'), item.role==='당기'?danggi.inc.nm:(item.addtl?item.addtl.inc.nm:0), nf2);
+          fc(ws,r2,ci++,specRef('명세_당기','F')+'-'+specRef('명세_직전','F'), item.role==='당기'?danggi.inc.nl:(item.addtl?item.addtl.inc.nl:0), nf2);
+        } else if(hasN){
+          fc(ws,r2,ci++,specRef('명세_당기','C')+'+'+specRef('명세_당기','D')+'-'+specRef('명세_직전','C')+'-'+specRef('명세_직전','D'),
+            item.role==='당기'?rp2(danggi.inc.ym+danggi.inc.yl):rp2((item.addtl?item.addtl.inc.ym:0)+(item.addtl?item.addtl.inc.yl:0)), nf2);
+          fc(ws,r2,ci++,specRef('명세_당기','E')+'+'+specRef('명세_당기','F')+'-'+specRef('명세_직전','E')+'-'+specRef('명세_직전','F'),
+            item.role==='당기'?rp2(danggi.inc.nm+danggi.inc.nl):rp2((item.addtl?item.addtl.inc.nm:0)+(item.addtl?item.addtl.inc.nl:0)), nf2);
+        } else {
+          fc(ws,r2,ci++,specRef('명세_당기','C')+'+'+specRef('명세_당기','D')+'-'+specRef('명세_직전','C')+'-'+specRef('명세_직전','D'),
+            item.role==='당기'?rp2(danggi.inc.ym+danggi.inc.yl):rp2((item.addtl?item.addtl.inc.ym:0)+(item.addtl?item.addtl.inc.yl:0)), nf2);
+        }
+      } else if(item.role==='당기'){
         if(isS){dc(ws,r2,ci++,danggi.inc.ym,nf2);dc(ws,r2,ci++,danggi.inc.yl,nf2);dc(ws,r2,ci++,danggi.inc.nm,nf2);dc(ws,r2,ci++,danggi.inc.nl,nf2);}
         else if(hasN){dc(ws,r2,ci++,rp2(danggi.inc.ym+danggi.inc.yl),nf2);dc(ws,r2,ci++,rp2(danggi.inc.nm+danggi.inc.nl),nf2);}
         else{dc(ws,r2,ci++,rp2(danggi.inc.ym+danggi.inc.yl),nf2);}
@@ -3211,6 +3664,36 @@ window.calcExportExcel = async function() {
         if(label==='결과') vc.font=Fn(10,true,v.match?C.pri:C.red);
         stripe(ws,r2,2,idx%2===1); r2++;
       });
+    }
+
+    // ── 명세서 연동 참조 테이블 (간략표 시트가 있을 때) ──
+    if (hasSpec) {
+      r2 += 1;
+      ws.mergeCells('A'+r2+':E'+r2);
+      ws.getCell('A'+r2).value='명세서 연동 참조';
+      ws.getCell('A'+r2).font=Fn(10,true,C.white); ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd;
+      for(let j=1;j<5;j++){ws.getCell(L(j)+r2).fill=fl(C.pri);ws.getCell(L(j)+r2).border=bd;}
+      r2++;
+      ['구분','청년등 수도권','청년등 비수도권','비청년등 수도권','비청년등 비수도권'].forEach((v,i)=>{
+        const c=ws.getCell(L(i)+r2);
+        c.value=v; c.font=Fn(9,true,C.white); c.fill=fl(C.pri); c.border=bd;
+        c.alignment={vertical:'middle',horizontal:'center'};
+      });
+      r2++;
+      // 당기 row
+      dc(ws,r2,0,'당기');
+      fc(ws,r2,1,"'명세_당기'!C7",0,nf2);
+      fc(ws,r2,2,"'명세_당기'!D7",0,nf2);
+      fc(ws,r2,3,"'명세_당기'!E7",0,nf2);
+      fc(ws,r2,4,"'명세_당기'!F7",0,nf2);
+      r2++;
+      // 직전 row
+      dc(ws,r2,0,'직전');
+      fc(ws,r2,1,"'명세_직전'!C7",0,nf2);
+      fc(ws,r2,2,"'명세_직전'!D7",0,nf2);
+      fc(ws,r2,3,"'명세_직전'!E7",0,nf2);
+      fc(ws,r2,4,"'명세_직전'!F7",0,nf2);
+      r2++;
     }
 
     ws.columns.forEach((col,i)=>{col.width=i===0?14:(i===cHdr.length-1?22:15);});

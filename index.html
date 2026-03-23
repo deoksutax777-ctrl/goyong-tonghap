@@ -2469,10 +2469,12 @@ async function spec_downloadExcel() {
                   ')' +
                 ')' +
               ',' +
-                'IF(A'+r+'="",0,' +
-                  'IF('+age35F+'<='+yearStart+',0,' +
-                    'IF('+age35F+'>'+yearEnd+','+totalF+',' +
-                      'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age35F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                'IF(L'+r+'<>"Y",0,' +
+                  'IF(A'+r+'="",0,' +
+                    'IF('+age35F+'<='+yearStart+',0,' +
+                      'IF('+age35F+'>'+yearEnd+','+totalF+',' +
+                        'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age35F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                      ')' +
                     ')' +
                   ')' +
                 ')' +
@@ -2531,10 +2533,12 @@ async function spec_downloadExcel() {
                   ')' +
                 ')' +
               ',' +
-                'IF(A'+r+'="",0,' +
-                  'IF('+age35F+'<='+yearStart+',0,' +
-                    'IF('+age35F+'>'+yearEnd+','+totalF+',' +
-                      'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age35F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                'IF(L'+r+'<>"Y",0,' +
+                  'IF(A'+r+'="",0,' +
+                    'IF('+age35F+'<='+yearStart+',0,' +
+                      'IF('+age35F+'>'+yearEnd+','+totalF+',' +
+                        'FLOOR(MAX(0,MIN(VALUE(RIGHT(I'+r+',2)),VALUE(MID(TEXT('+age35F+',"00000000"),5,2))-1)-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01)' +
+                      ')' +
                     ')' +
                   ')' +
                 ')' +
@@ -2648,16 +2652,32 @@ window.recalcAll = function() { calc_recalcAll(); };
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calc_calcDanggi(corp, diff) {
   const r = RATES[corp];
+  // ① 지역별 cap (수도권/비수도권 각각, 청년 우선)
   const metroDiff = diff.ym + diff.nm;
   const localDiff = diff.yl + diff.nl;
   const metroCap = Math.max(0, metroDiff);
   const localCap = Math.max(0, localDiff);
   const rawYm = Math.max(0, diff.ym), rawNm = Math.max(0, diff.nm);
   const rawYl = Math.max(0, diff.yl), rawNl = Math.max(0, diff.nl);
-  const capYm = Math.min(rawYm, metroCap);
-  const capNm = Math.min(rawNm, metroCap - capYm);
-  const capYl = Math.min(rawYl, localCap);
-  const capNl = Math.min(rawNl, localCap - capYl);
+  let capYm = Math.min(rawYm, metroCap);
+  let capNm = Math.min(rawNm, metroCap - capYm);
+  let capYl = Math.min(rawYl, localCap);
+  let capNl = Math.min(rawNl, localCap - capYl);
+  // ② 전체 상시근로자 증가분 최종 cap (공제단가 큰 순서로 배정)
+  const totalCap = Math.max(0, metroDiff + localDiff);
+  const regionSum = calc_rp2(capYm + capYl + capNm + capNl);
+  if (regionSum > totalCap && regionSum > 0) {
+    const order = [
+      { key:'yl', val:capYl, rate:r.youth.local },
+      { key:'ym', val:capYm, rate:r.youth.metro },
+      { key:'nl', val:capNl, rate:r.normal.local },
+      { key:'nm', val:capNm, rate:r.normal.metro },
+    ].sort((a,b) => b.rate - a.rate);
+    let remain = totalCap;
+    const result = {};
+    order.forEach(o => { result[o.key] = calc_rp2(Math.min(o.val, remain)); remain = calc_rp2(remain - result[o.key]); });
+    capYm = result.ym; capYl = result.yl; capNm = result.nm; capNl = result.nl;
+  }
   const inc = { ym: calc_truncW(capYm), yl: calc_truncW(capYl), nm: calc_truncW(capNm), nl: calc_truncW(capNl) };
   const amt = { ym: calc_truncAmt(inc.ym*r.youth.metro), yl: calc_truncAmt(inc.yl*r.youth.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
   return { inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl };
