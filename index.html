@@ -2643,9 +2643,30 @@ function calc_youthW(w) { return calc_rp2(w.ym + w.yl); }
 function calc_diffW(a, b) { return { ym: calc_rp2(a.ym-b.ym), yl: calc_rp2(a.yl-b.yl), nm: calc_rp2(a.nm-b.nm), nl: calc_rp2(a.nl-b.nl) }; }
 function calc_maxZ(w) { return { ym: Math.max(0,w.ym), yl: Math.max(0,w.yl), nm: Math.max(0,w.nm), nl: Math.max(0,w.nl) }; }
 
+// ── 같은 연도 동기화: 한 시작연도에서 값 입력 시 다른 시작연도의 같은 연도에 자동 복사 ──
+function calc_syncYear(sourceStartY, y, suffix) {
+  const srcEl = document.getElementById('w'+sourceStartY+'-'+y+'-'+suffix);
+  if (!srcEl) return;
+  const val = srcEl.value;
+  const from = calc_getFrom(), to = calc_getTo();
+  for (let sy = from+1; sy <= to; sy++) {
+    if (sy === sourceStartY) continue;
+    const targetEl = document.getElementById('w'+sy+'-'+y+'-'+suffix);
+    if (!targetEl) continue;
+    if (targetEl.value === '0' || targetEl.value === '') {
+      targetEl.value = val;
+      calc_updateTotPlaceholder(sy, y);
+    }
+  }
+}
+function calc_syncYearAll(sourceStartY, y) {
+  ['ym','yl','nm','nl'].forEach(s => calc_syncYear(sourceStartY, y, s));
+}
+
 // Make these available globally for inline oninput handlers
 window.updateTotPlaceholder = calc_updateTotPlaceholder;
 window.recalcAll = function() { calc_recalcAll(); };
+window.syncYear = function(startY, y) { calc_syncYearAll(startY, y); };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 당기공제
@@ -2843,9 +2864,9 @@ function calc_buildInput() {
       h+=`<tr><td class="lbl"><strong>${y}년</strong></td>`;
       h+=`<td style="font-size:11px;color:var(--text-muted);">${role}</td>`;
       h+=`<td><input type="number" id="w${startY}-${y}-tot" step="0.01" value="" placeholder="자동" style="background:#f0f5ff;font-weight:600;" oninput="recalcAll()"></td>`;
-      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`;
-      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`;
-      if(hasN) { h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`; if(isS) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});recalcAll()"></td>`; }
+      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`;
+      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`;
+      if(hasN) { h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`; if(isS) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`; }
       h+='</tr>';
     });
 
