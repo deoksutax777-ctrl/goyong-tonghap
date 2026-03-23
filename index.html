@@ -2647,7 +2647,9 @@ function calc_maxZ(w) { return { ym: Math.max(0,w.ym), yl: Math.max(0,w.yl), nm:
 function calc_syncYear(sourceStartY, y, suffix) {
   const srcEl = document.getElementById('w'+sourceStartY+'-'+y+'-'+suffix);
   if (!srcEl) return;
-  const val = srcEl.value;
+  const raw = parseFloat(srcEl.value);
+  if (isNaN(raw)) return;
+  const val = (Math.round(raw * 100) / 100).toFixed(2);
   const from = calc_getFrom(), to = calc_getTo();
   for (let sy = from+1; sy <= to; sy++) {
     if (sy === sourceStartY) continue;
