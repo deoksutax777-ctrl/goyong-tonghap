@@ -2847,13 +2847,23 @@ function calc_buildInput() {
     h+='<th rowspan="2" style="width:70px;">연도</th>';
     h+='<th rowspan="2" style="width:50px;">역할</th>';
     h+='<th rowspan="2" style="width:80px;background:#e8eef8;">상시합계</th>';
-    h+=`<th colspan="${isS?2:1}" class="y-hdr">청년등</th>`;
-    if(hasN) h+=`<th colspan="${isS?2:1}" class="n-hdr">청년등외</th>`;
-    h+='</tr><tr>';
-    h+=`<th class="y-hdr">${isS?'수도권':'전체'}</th>`;
-    if(isS) h+='<th class="y-hdr">비수도권</th>';
-    if(hasN) { h+=`<th class="n-hdr">${isS?'수도권':'전체'}</th>`; if(isS) h+='<th class="n-hdr">비수도권</th>'; }
-    h+='</tr></thead><tbody>';
+    if(isS) {
+      h+=`<th colspan="${hasN?2:1}" style="background:#dbe8f8;color:#1a4fa8;font-weight:700;">수도권</th>`;
+      h+=`<th colspan="${hasN?2:1}" style="background:#e8f0d8;color:#2c5f2d;font-weight:700;">비수도권</th>`;
+    } else {
+      h+='<th class="y-hdr">청년등</th>';
+      if(hasN) h+='<th class="n-hdr">청년등외</th>';
+    }
+    h+='</tr>';
+    if(isS) {
+      h+='<tr>';
+      h+='<th class="y-hdr">청년등</th>';
+      if(hasN) h+='<th class="n-hdr">청년등외</th>';
+      h+='<th class="y-hdr">청년등</th>';
+      if(hasN) h+='<th class="n-hdr">청년등외</th>';
+      h+='</tr>';
+    }
+    h+='</thead><tbody>';
 
     yearsNeeded.forEach((y, idx) => {
       let role='';
@@ -2864,9 +2874,11 @@ function calc_buildInput() {
       h+=`<tr><td class="lbl"><strong>${y}년</strong></td>`;
       h+=`<td style="font-size:11px;color:var(--text-muted);">${role}</td>`;
       h+=`<td><input type="number" id="w${startY}-${y}-tot" step="0.01" value="" placeholder="자동" style="background:#f0f5ff;font-weight:600;" oninput="recalcAll()"></td>`;
-      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`;
-      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`;
-      if(hasN) { h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`; if(isS) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()"></td>`; }
+      var oninp = `updateTotPlaceholder(${startY},${y});syncYear(${startY},${y});recalcAll()`;
+      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="${oninp}"></td>`;
+      if(hasN) h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="${oninp}"></td>`;
+      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="${oninp}"></td>`;
+      if(isS&&hasN) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="${oninp}"></td>`;
       h+='</tr>';
     });
 
