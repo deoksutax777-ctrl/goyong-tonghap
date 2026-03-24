@@ -1047,7 +1047,7 @@ function downloadTemplate() {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('템플릿');
 
-  const headers = ['생년월일', '성명', '상시근로자', '상시근로자제외사유', '단시간근로자유형', '내국인', '수도권', '근로계약체결일', '퇴사년월일', '장애인', '병역기간(년)'];
+  const headers = ['생년월일', '성명', '상시근로자', '상시근로자제외사유', '단시간근로자유형', '내국인', '수도권', '근로계약체결일', '퇴사년월일', '장애인', '병역기간(월)'];
   const headerRow = ws.addRow(headers);
   headerRow.eachCell(cell => {
     cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1201,7 +1201,8 @@ function parseEmployees(rows) {
       const colHire    = findCol(['근로계약체결일', '계약체결일']);
       const colResign  = findCol(['퇴사년월일', '퇴사일']);
       const colDisab   = findCol(['장애인']);
-      const colMilitary = findCol(['병역기간', '병역기간(년)', '병역']);
+      const colMilitary = findCol(['병역기간(월)', '병역기간', '병역기간(년)', '병역']);
+      const isMilitaryInMonths = colMilitary >= 0 && /월/.test(headerStr[colMilitary]);
 
       let shiftDetected = false;
       if (colRegular < 0 && colReason >= 0 && rows.length > 1) {
@@ -1289,7 +1290,7 @@ function parseEmployees(rows) {
           _templateShortTime: (shortT === '0.5' || shortT === '0.75') ? shortT : '',
           _templateDomestic: dom === 'Y' ? 'Y' : 'N',
           _templateMetro: metro === 'Y' ? 'Y' : 'N',
-          militaryYears: colMilitary >= 0 ? (parseFloat(r[colMilitary]) || 0) : 0,
+          militaryYears: colMilitary >= 0 ? ((parseFloat(r[colMilitary]) || 0) / (isMilitaryInMonths ? 12 : 1)) : 0,
         });
       }
     }
