@@ -3000,45 +3000,21 @@ window.calcRecalcAll = recalcAll;
 // 검증
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calcVerification(tl, danggi, corp, startY) {
-  const r = getRates(corp, startY);
   const wPrev = getW(startY, startY-1);
   const dataItems = tl.filter(t => t.hasData && t.role!=='전기');
   if (dataItems.length <= 1) return null;
 
   const last = dataItems[dataItems.length-1];
   const wLast = getW(startY, last.year);
-
-  const effDiff = diffW(wLast, wPrev);
   const wDanggi = getW(startY, startY);
   const youthDec = youthW(wLast) < youthW(wDanggi);
 
-  const totalEffDiff = Math.max(0, totalW(wLast) - totalW(wPrev));
-  const rawEffInc = {
-    ym: Math.min(danggi.inc.ym, Math.max(0, effDiff.ym)),
-    yl: Math.min(danggi.inc.yl, Math.max(0, effDiff.yl)),
-    nm: Math.min(danggi.inc.nm, Math.max(0, effDiff.nm)),
-    nl: Math.min(danggi.inc.nl, Math.max(0, effDiff.nl))
-  };
+  // 마지막 연도 상태가 처음부터 존재했다면 → calcDanggi 동일 로직으로 계산
+  const vDiff = diffW(wLast, wPrev);
+  const vDanggi = calcDanggi(corp, vDiff, startY);
 
-  let effInc;
-  if (youthDec) {
-    const dTotal = danggi.inc.ym + danggi.inc.yl + danggi.inc.nm + danggi.inc.nl;
-    const maintained = Math.min(dTotal, totalEffDiff);
-    const scale = dTotal > 0 ? maintained / dTotal : 0;
-    effInc = { ym: truncW(danggi.inc.ym*scale), yl: truncW(danggi.inc.yl*scale), nm: truncW(danggi.inc.nm*scale), nl: truncW(danggi.inc.nl*scale) };
-  } else {
-    const sumRaw = rawEffInc.ym + rawEffInc.yl + rawEffInc.nm + rawEffInc.nl;
-    if (sumRaw > totalEffDiff && totalEffDiff >= 0) {
-      const s = sumRaw > 0 ? totalEffDiff / sumRaw : 0;
-      effInc = { ym: truncW(rawEffInc.ym*s), yl: truncW(rawEffInc.yl*s), nm: truncW(rawEffInc.nm*s), nl: truncW(rawEffInc.nl*s) };
-    } else {
-      effInc = rawEffInc;
-    }
-  }
-
-  const yR = youthDec ? r.normal : r.youth;
-  const fsPerYear = truncAmt(effInc.ym*yR.metro) + truncAmt(effInc.yl*yR.local)
-                  + truncAmt(effInc.nm*r.normal.metro) + truncAmt(effInc.nl*r.normal.local);
+  const effInc = vDanggi.inc;
+  const fsPerYear = vDanggi.total;
   const numY = dataItems.length;
   const fsTotal = fsPerYear * numY;
   const actualNet = dataItems.reduce((s,t) => s + t.credit - t.chugjing, 0);
