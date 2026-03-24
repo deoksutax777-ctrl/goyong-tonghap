@@ -1826,8 +1826,8 @@ function spec_calculate() {
   window._lastResult = { curProcessed, prevProcessed, curAgg, prevAgg, taxYear };
   document.getElementById('btn-excel').disabled = false;
 
-  // localStorage에 저장 (backward compatibility)
-  localStorage.setItem('goyong_new_' + taxYear, JSON.stringify({
+  // localStorage에 저장 — old/new 양쪽 키로 저장 (계산기가 시작연도에 따라 다른 키로 읽음)
+  const curLS = JSON.stringify({
     workerCount: curAgg.workerCount,
     youthWorkerCount: curAgg.youthWorkerCount,
     nonYouthWorkerCount: curAgg.nonYouthWorkerCount,
@@ -1835,8 +1835,8 @@ function spec_calculate() {
     youthLocal: curAgg.youthLocal,
     nonYouthMetro: curAgg.nonYouthMetro,
     nonYouthLocal: curAgg.nonYouthLocal
-  }));
-  localStorage.setItem('goyong_new_' + prevYear, JSON.stringify({
+  });
+  const prevLS = JSON.stringify({
     workerCount: prevAgg.workerCount,
     youthWorkerCount: prevAgg.youthWorkerCount,
     nonYouthWorkerCount: prevAgg.nonYouthWorkerCount,
@@ -1844,7 +1844,11 @@ function spec_calculate() {
     youthLocal: prevAgg.youthLocal,
     nonYouthMetro: prevAgg.nonYouthMetro,
     nonYouthLocal: prevAgg.nonYouthLocal
-  }));
+  });
+  localStorage.setItem('goyong_new_' + taxYear, curLS);
+  localStorage.setItem('goyong_old_' + taxYear, curLS);
+  localStorage.setItem('goyong_new_' + prevYear, prevLS);
+  localStorage.setItem('goyong_old_' + prevYear, prevLS);
 
   // Direct JS data flow: store in window.specData
   if (!window.specData) window.specData = { old: {}, new: {} };
