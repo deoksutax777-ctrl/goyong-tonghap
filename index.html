@@ -450,6 +450,17 @@
   #tab-calc .input-table td.lbl { font-family: var(--font); font-weight: 500; text-align: left; background: var(--surface2); white-space: nowrap; }
   #tab-calc .input-table td input[type=number] { width: 80px; text-align: right; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-family: var(--mono); font-size: 12px; }
 
+  /* Summary table (상시근로자 요약표) */
+  #tab-calc .summary-table { width: auto; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+  #tab-calc .summary-table th, #tab-calc .summary-table td { padding: 6px 14px; border: 1px solid var(--border); text-align: center; }
+  #tab-calc .summary-table th { background: var(--surface2); font-weight: 600; white-space: nowrap; }
+  #tab-calc .summary-table td { font-family: var(--mono); min-width: 70px; }
+  #tab-calc .summary-table td.row-label { font-family: var(--font); font-weight: 500; text-align: left; background: var(--surface2); }
+  #tab-calc .summary-table tr:last-child td { font-weight: 700; background: #f0f5ff; }
+  .btn-view-toggle { padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; cursor: pointer; color: var(--text); }
+  .btn-view-toggle:hover { background: var(--border); }
+  .btn-view-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
   /* Timeline cards */
   #tab-calc .tl-section { margin-bottom: 28px; }
   #tab-calc .tl-title {
@@ -781,9 +792,13 @@
       <button onclick="calc_loadFromSpec()" style="background:var(--accent);color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;">명세서에서 가져오기</button>
     </div>
     <div class="panel-body">
-      <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">시작연도별 상시근로자수를 입력하세요. <strong>25년 이전 시작 -> 종전 규정</strong>, <strong>25년부터 시작 -> 개정 규정</strong>으로 산출한 상시근로자수를 각각 입력합니다.</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <p style="font-size:11px;color:var(--text-muted);margin:0;flex:1;">시작연도별 상시근로자수를 입력하세요. <strong>25년 이전 시작 -> 종전 규정</strong>, <strong>25년부터 시작 -> 개정 규정</strong>으로 산출한 상시근로자수를 각각 입력합니다.</p>
+        <button class="btn-view-toggle" id="btn-summary-view" onclick="calc_toggleSummaryView()">요약표 보기</button>
+      </div>
       <div id="load-status" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;font-size:11px;"></div>
       <div id="input-area"></div>
+      <div id="summary-area" style="display:none;"></div>
     </div>
   </div>
 
@@ -2676,6 +2691,101 @@ window.updateTotPlaceholder = calc_updateTotPlaceholder;
 window.recalcAll = function() { calc_recalcAll(); };
 window.syncYear = function(startY, y) { calc_syncYearAll(startY, y); };
 
+// ── 요약표 토글 ──
+let calc_summaryMode = false;
+function calc_toggleSummaryView() {
+  calc_summaryMode = !calc_summaryMode;
+  const btn = document.getElementById('btn-summary-view');
+  const inputArea = document.getElementById('input-area');
+  const summaryArea = document.getElementById('summary-area');
+  if (calc_summaryMode) {
+    btn.classList.add('active');
+    btn.textContent = '입력표 보기';
+    inputArea.style.display = 'none';
+    summaryArea.style.display = 'block';
+    calc_renderSummaryTables();
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '요약표 보기';
+    inputArea.style.display = 'block';
+    summaryArea.style.display = 'none';
+  }
+}
+
+function calc_renderSummaryTables() {
+  const corp = calc_getCorp(), from = calc_getFrom(), to = calc_getTo();
+  const isS = (corp === '중소'), hasN = (corp !== '대기업');
+  const maxY = RATES[corp].years;
+  if (to <= from) { document.getElementById('summary-area').innerHTML = ''; return; }
+
+  let h = '';
+
+  // 모든 연도를 수집 (시작연도별로 필요한 연도)
+  const allYears = new Set();
+  for (let sy = from + 1; sy <= to; sy++) {
+    for (let i = -1; i < maxY; i++) allYears.add(sy + i);
+  }
+  const years = [...allYears].sort();
+
+  h += '<div style="margin-bottom:12px;font-size:11px;color:var(--text-muted);">※ 입력된 상시근로자수를 <strong>구분(수도권/지방) × 유형(청년/청년외)</strong> 요약표로 표시합니다.</div>';
+
+  years.forEach(y => {
+    // 해당 연도 데이터를 가져올 시작연도 찾기 (가장 먼저 포함하는 것)
+    let w = null;
+    for (let sy = from + 1; sy <= to; sy++) {
+      const el = document.getElementById('w' + sy + '-' + y + '-ym');
+      if (el) { w = calc_getW(sy, y); break; }
+    }
+    if (!w) return;
+
+    const ym = w.ym, yl = w.yl, nm = w.nm, nl = w.nl;
+    const yTotal = calc_rp2(ym + yl);
+    const nTotal = calc_rp2(nm + nl);
+    const mTotal = calc_rp2(ym + nm);
+    const lTotal = calc_rp2(yl + nl);
+    const grand = calc_totalW(w);
+
+    // 역할 표시
+    let roles = [];
+    for (let sy = from + 1; sy <= to; sy++) {
+      const startI = sy - 1;
+      if (y === startI) roles.push(sy + '년시작 전기');
+      else if (y === sy) roles.push(sy + '년시작 당기');
+      else {
+        const diff = y - sy;
+        if (diff > 0 && diff < maxY) roles.push(sy + '년시작 ' + diff + '차추가');
+      }
+    }
+    const roleStr = roles.length > 0 ? roles.join(', ') : '';
+
+    h += `<div style="margin-bottom:14px;">`;
+    h += `<div style="font-size:13px;font-weight:600;margin-bottom:4px;">${y}년`;
+    if (roleStr) h += ` <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(${roleStr})</span>`;
+    h += `</div>`;
+
+    if (isS) {
+      h += '<table class="summary-table">';
+      h += '<thead><tr><th>구분</th><th>수도권</th><th>지방</th><th>계</th></tr></thead>';
+      h += '<tbody>';
+      h += `<tr><td class="row-label">청년</td><td>${ym.toFixed(2)}</td><td>${yl.toFixed(2)}</td><td>${yTotal.toFixed(2)}</td></tr>`;
+      if (hasN) h += `<tr><td class="row-label">청년외</td><td>${nm.toFixed(2)}</td><td>${nl.toFixed(2)}</td><td>${nTotal.toFixed(2)}</td></tr>`;
+      h += `<tr><td class="row-label">상시</td><td>${mTotal.toFixed(2)}</td><td>${lTotal.toFixed(2)}</td><td>${grand.toFixed(2)}</td></tr>`;
+      h += '</tbody></table>';
+    } else {
+      h += '<table class="summary-table">';
+      h += '<thead><tr><th>구분</th><th>인원</th></tr></thead>';
+      h += '<tbody>';
+      h += `<tr><td class="row-label">청년등</td><td>${yTotal.toFixed(2)}</td></tr>`;
+      if (hasN) h += `<tr><td class="row-label">청년등외</td><td>${nTotal.toFixed(2)}</td></tr>`;
+      h += `<tr><td class="row-label">상시</td><td>${grand.toFixed(2)}</td></tr>`;
+      h += '</tbody></table>';
+    }
+    h += '</div>';
+  });
+
+  document.getElementById('summary-area').innerHTML = h;
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 당기공제
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2947,6 +3057,7 @@ function calc_recalcAll() {
 
   calc_renderTimelines(all);
   calc_renderSummary(all, from, to);
+  if (calc_summaryMode) calc_renderSummaryTables();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3549,6 +3660,121 @@ async function calc_exportExcel() {
   totRow(ws2,row,mCols);
 
   ws2.columns.forEach((col,i)=>{col.width=i===0?18:13;});
+
+  // ═══════ 상시근로자 요약 시트 (수식 포함) ═══════
+  const ws3 = wb.addWorksheet('상시근로자 요약');
+  initWs(ws3);
+
+  const allYearsSet = new Set();
+  calc_lastAll.forEach(({startY}) => {
+    const mY = RATES[corp].years;
+    for (let i = -1; i < mY; i++) allYearsSet.add(startY + i);
+  });
+  const sumYears = [...allYearsSet].sort();
+
+  ws3.mergeCells('A1:D1');
+  ws3.getCell('A1').value = `상시근로자 요약표 (${corp})`;
+  ws3.getCell('A1').font = Fn(14, true, C.white);
+  ws3.getCell('A1').fill = fl(C.dark);
+  ws3.getCell('A1').alignment = { vertical: 'middle' };
+  ws3.getRow(1).height = 32;
+
+  let sr = 3;
+  const nf2s = '#,##0.00';
+
+  sumYears.forEach(y => {
+    // 해당 연도 데이터 가져오기
+    let w = null;
+    for (let sy = calc_getFrom() + 1; sy <= calc_getTo(); sy++) {
+      const el = document.getElementById('w' + sy + '-' + y + '-ym');
+      if (el) { w = calc_getW(sy, y); break; }
+    }
+    if (!w) return;
+
+    // 연도 제목
+    ws3.mergeCells('A' + sr + ':D' + sr);
+    ws3.getCell('A' + sr).value = y + '년';
+    ws3.getCell('A' + sr).font = Fn(12, true);
+    ws3.getCell('A' + sr).fill = fl(C.light);
+    for (let c = 0; c < 4; c++) { ws3.getCell(L(c) + sr).border = bd; ws3.getCell(L(c) + sr).fill = fl(C.light); }
+    sr++;
+
+    if (isS) {
+      // 헤더: 구분 | 수도권 | 지방 | 계
+      const hdr = ['구분', '수도권', '지방', '계'];
+      hdr.forEach((v, i) => {
+        const c = ws3.getCell(L(i) + sr);
+        c.value = v; c.font = Fn(10, true, C.white); c.fill = fl(C.pri); c.border = bd;
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      sr++;
+
+      const ymR = sr, startDataR = sr;
+      // 청년
+      ws3.getCell('A' + sr).value = '청년'; ws3.getCell('A' + sr).font = Fn(10, true); ws3.getCell('A' + sr).border = bd;
+      ws3.getCell('B' + sr).value = w.ym; ws3.getCell('B' + sr).numFmt = nf2s; ws3.getCell('B' + sr).border = bd;
+      ws3.getCell('C' + sr).value = w.yl; ws3.getCell('C' + sr).numFmt = nf2s; ws3.getCell('C' + sr).border = bd;
+      ws3.getCell('D' + sr).value = { formula: 'B' + sr + '+C' + sr, result: Math.round((w.ym + w.yl) * 100) / 100 };
+      ws3.getCell('D' + sr).numFmt = nf2s; ws3.getCell('D' + sr).border = bd; ws3.getCell('D' + sr).font = Fn(10, true);
+      sr++;
+
+      if (hasN) {
+        // 청년외
+        ws3.getCell('A' + sr).value = '청년외'; ws3.getCell('A' + sr).font = Fn(10); ws3.getCell('A' + sr).border = bd;
+        ws3.getCell('B' + sr).value = w.nm; ws3.getCell('B' + sr).numFmt = nf2s; ws3.getCell('B' + sr).border = bd;
+        ws3.getCell('C' + sr).value = w.nl; ws3.getCell('C' + sr).numFmt = nf2s; ws3.getCell('C' + sr).border = bd;
+        ws3.getCell('D' + sr).value = { formula: 'B' + sr + '+C' + sr, result: Math.round((w.nm + w.nl) * 100) / 100 };
+        ws3.getCell('D' + sr).numFmt = nf2s; ws3.getCell('D' + sr).border = bd; ws3.getCell('D' + sr).font = Fn(10, true);
+        sr++;
+      }
+
+      // 상시 합계
+      const endDataR = sr - 1;
+      ws3.getCell('A' + sr).value = '상시'; ws3.getCell('A' + sr).font = Fn(10, true); ws3.getCell('A' + sr).border = bd;
+      ws3.getCell('A' + sr).fill = fl(C.pale);
+      ['B', 'C', 'D'].forEach(col => {
+        ws3.getCell(col + sr).value = { formula: 'SUM(' + col + startDataR + ':' + col + endDataR + ')', result: 0 };
+        ws3.getCell(col + sr).numFmt = nf2s; ws3.getCell(col + sr).border = bd;
+        ws3.getCell(col + sr).font = Fn(10, true); ws3.getCell(col + sr).fill = fl(C.pale);
+      });
+      // 결과값 수동 계산
+      ws3.getCell('B' + sr).value = { formula: 'SUM(B' + startDataR + ':B' + endDataR + ')', result: Math.round((w.ym + w.nm) * 100) / 100 };
+      ws3.getCell('C' + sr).value = { formula: 'SUM(C' + startDataR + ':C' + endDataR + ')', result: Math.round((w.yl + w.nl) * 100) / 100 };
+      ws3.getCell('D' + sr).value = { formula: 'SUM(D' + startDataR + ':D' + endDataR + ')', result: Math.round(calc_totalW(w) * 100) / 100 };
+      sr++;
+    } else {
+      // 비중소: 구분 | 인원
+      ['구분', '인원'].forEach((v, i) => {
+        const c = ws3.getCell(L(i) + sr);
+        c.value = v; c.font = Fn(10, true, C.white); c.fill = fl(C.pri); c.border = bd;
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      sr++;
+      const startDataR = sr;
+      ws3.getCell('A' + sr).value = '청년등'; ws3.getCell('A' + sr).font = Fn(10, true); ws3.getCell('A' + sr).border = bd;
+      ws3.getCell('B' + sr).value = calc_rp2(w.ym + w.yl); ws3.getCell('B' + sr).numFmt = nf2s; ws3.getCell('B' + sr).border = bd;
+      sr++;
+      if (hasN) {
+        ws3.getCell('A' + sr).value = '청년등외'; ws3.getCell('A' + sr).font = Fn(10); ws3.getCell('A' + sr).border = bd;
+        ws3.getCell('B' + sr).value = calc_rp2(w.nm + w.nl); ws3.getCell('B' + sr).numFmt = nf2s; ws3.getCell('B' + sr).border = bd;
+        sr++;
+      }
+      const endDataR = sr - 1;
+      ws3.getCell('A' + sr).value = '상시'; ws3.getCell('A' + sr).font = Fn(10, true); ws3.getCell('A' + sr).border = bd;
+      ws3.getCell('A' + sr).fill = fl(C.pale);
+      ws3.getCell('B' + sr).value = { formula: 'SUM(B' + startDataR + ':B' + endDataR + ')', result: calc_totalW(w) };
+      ws3.getCell('B' + sr).numFmt = nf2s; ws3.getCell('B' + sr).border = bd;
+      ws3.getCell('B' + sr).font = Fn(10, true); ws3.getCell('B' + sr).fill = fl(C.pale);
+      sr++;
+    }
+
+    sr++; // 연도 간 빈 행
+  });
+
+  ws3.getColumn(1).width = 12;
+  ws3.getColumn(2).width = 12;
+  ws3.getColumn(3).width = 12;
+  ws3.getColumn(4).width = 12;
 
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
