@@ -7,18 +7,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f0f2f5;
+    --bg: #f4f6fa;
     --surface: #ffffff;
     --surface2: #f8f9fb;
-    --border: #d0d5dd;
+    --border: #C5D0E6;
     --border-strong: #8a9bb0;
-    --text: #1a2332;
-    --text-muted: #5a6a7e;
-    --accent: #1a4fa8;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --accent: #00338D;
     --accent-light: #e8eef8;
-    --accent2: #0e7c61;
-    --accent2-light: #e6f4f0;
-    --warn: #c0392b;
+    --accent2: #B8860B;
+    --accent2-light: #fdf6e8;
+    --warn: #dc2626;
     --warn-light: #fdf0ee;
     --orange: #e67e22;
     --orange-light: #fef6e8;
@@ -26,6 +26,8 @@
     --row-hover: #f2f5fb;
     --excluded-bg: #fdf5f5;
     --youth-bg: #f0f8f4;
+    --gold: #B8860B;
+    --gold-dim: rgba(184,134,11,0.15);
     --font: 'Noto Sans KR', sans-serif;
     --mono: 'IBM Plex Mono', monospace;
   }
@@ -48,7 +50,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 12px rgba(26,79,168,.25);
+    box-shadow: 0 2px 12px rgba(0, 51, 141, 0.3);
   }
   .app-header-top {
     display: flex;
@@ -71,11 +73,11 @@
   .switch-btn {
     padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
     text-decoration: none; transition: all .2s; cursor: pointer;
-    background: #fff; color: #2c5f2d; border: 2px solid #fff;
+    background: var(--gold, #B8860B); color: #fff; border: 2px solid var(--gold, #B8860B);
     margin-left: 8px; letter-spacing: .3px;
     box-shadow: 0 1px 4px rgba(0,0,0,.15);
   }
-  .switch-btn:hover { background: #e6f4e6; border-color: #e6f4e6; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.2); }
+  .switch-btn:hover { background: #9a7209; border-color: #9a7209; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.2); }
 
   /* 테마 토글 */
   .theme-btn {
@@ -87,29 +89,29 @@
 
   /* 연노란 테마 */
   body.theme-warm {
-    --bg: #fffde7; --surface: #fffff0; --surface2: #fff9c4;
-    --border: #e0d54a; --border-strong: #c9b900; --text: #33300a; --text-muted: #7a7530;
-    --accent: #f9a825; --accent-light: #fff8e1; --accent2: #f57f17; --accent2-light: #fff3e0;
-    --header-bg: #fff9c4; --row-hover: #fffde7; --excluded-bg: #fff3e0; --youth-bg: #fffff0;
-    --warn: #d32f2f; --warn-light: #ffebee; --orange: #ef6c00; --orange-light: #fff3e0;
+    --bg: #fdf8f0; --surface: #fffcf5; --surface2: #fdf3e0;
+    --border: #d4a017; --border-strong: #B8860B; --text: #2a2010; --text-muted: #7a6830;
+    --accent: #B8860B; --accent-light: #fdf6e8; --accent2: #d4a017; --accent2-light: #fef9e8;
+    --header-bg: #fdf3e0; --row-hover: #fdf8f0; --excluded-bg: #fff3e0; --youth-bg: #fffcf5;
+    --warn: #dc2626; --warn-light: #ffebee; --orange: #ef6c00; --orange-light: #fff3e0;
   }
-  body.theme-warm .app-header { background: #f9a825; box-shadow: 0 2px 12px rgba(249,168,37,.35); color: #33300a; }
-  body.theme-warm .app-header .sub { color: #5a5520; }
-  body.theme-warm .main-tabs { background: #f57f17; }
+  body.theme-warm .app-header { background: #B8860B; box-shadow: 0 2px 12px rgba(184,134,11,.35); color: #fff; }
+  body.theme-warm .app-header .sub { color: rgba(255,255,255,.7); }
+  body.theme-warm .main-tabs { background: #9a7209; }
   body.theme-warm .main-tab-btn { color: rgba(255,255,255,.75); }
-  body.theme-warm .main-tab-btn.active { color: #f9a825; background: var(--bg); }
-  body.theme-warm .switch-btn { color: #2c5f2d; background: #fff; }
-  body.theme-warm .theme-btn { color: #33300a; border-color: rgba(51,48,10,.3); }
-  body.theme-warm .panel-header { color: #e65100; }
-  body.theme-warm .matrix th { background: #f9a825; color: #33300a; border-color: #f9a825; }
-  body.theme-warm .matrix tr.row-total td { background: #f9a825; color: #33300a; border-color: #f9a825; }
-  body.theme-warm .matrix tr.row-total td.lbl { background: #f9a825; color: #33300a; }
-  body.theme-warm .matrix td.col-total { background: #fff8e1; color: #e65100; }
-  body.theme-warm .highlight-box { background: #f9a825; color: #33300a; }
-  body.theme-warm .tl-title-badge { background: #f9a825; color: #33300a; }
-  body.theme-warm .progress-fill { background: linear-gradient(90deg, #f9a825, #f57f17); }
-  body.theme-warm .tl-card.c-danggi { border-color: #f9a825; background: linear-gradient(135deg, #fff8e1, #fffde7); }
-  body.theme-warm .tl-card.c-addtl { border-color: #f57f17; background: linear-gradient(135deg, #fff3e0, #fffff0); }
+  body.theme-warm .main-tab-btn.active { color: #B8860B; background: var(--bg); }
+  body.theme-warm .switch-btn { color: #00338D; background: #fff; }
+  body.theme-warm .theme-btn { color: #fff; border-color: rgba(255,255,255,.3); }
+  body.theme-warm .panel-header { color: #B8860B; }
+  body.theme-warm .matrix th { background: #B8860B; color: #fff; border-color: #B8860B; }
+  body.theme-warm .matrix tr.row-total td { background: #B8860B; color: #fff; border-color: #B8860B; }
+  body.theme-warm .matrix tr.row-total td.lbl { background: #B8860B; color: #fff; }
+  body.theme-warm .matrix td.col-total { background: #fdf6e8; color: #B8860B; }
+  body.theme-warm .highlight-box { background: #B8860B; color: #fff; }
+  body.theme-warm .tl-title-badge { background: #B8860B; color: #fff; }
+  body.theme-warm .progress-fill { background: linear-gradient(90deg, #B8860B, #d4a017); }
+  body.theme-warm .tl-card.c-danggi { border-color: #B8860B; background: linear-gradient(135deg, #fdf6e8, #fdf8f0); }
+  body.theme-warm .tl-card.c-addtl { border-color: #d4a017; background: linear-gradient(135deg, #fef9e8, #fffcf5); }
 
   /* ── MAIN TABS ────────────────────────── */
   .main-tabs {
@@ -176,7 +178,7 @@
   .field-group input:focus, .field-group select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(26,79,168,.1);
+    box-shadow: 0 0 0 2px rgba(0,51,141,.1);
   }
 
   .btn-calc {
@@ -3422,9 +3424,9 @@ async function calc_exportExcel() {
   const L = i => String.fromCharCode(65+i);
 
   const C = {
-    dark:'FF1B3A8C', pri:'FF2255CC', mid:'FF4477DD',
-    light:'FFDCE6F8', pale:'FFEEF3FC',
-    white:'FFFFFFFF', black:'FF1A1A2E', muted:'FF556688', red:'FFC0392B',
+    dark:'FF00338D', pri:'FF00338D', mid:'FF1A4A9E', gold:'FFB8860B',
+    light:'FFE8EEF8', pale:'FFF4F6FA',
+    white:'FFFFFFFF', black:'FF1A1A2E', muted:'FF6B7280', red:'FFDC2626',
   };
   const Fn = (sz,bold,color) => ({ name:'맑은 고딕', size:sz||10, bold:!!bold, color:color?{argb:color}:{argb:C.black} });
   const fl = argb => ({ type:'pattern', pattern:'solid', fgColor:{argb} });
