@@ -2618,6 +2618,7 @@ const RATES = {
   '중견': { youth: { metro: 800, local: 800 }, normal: { metro: 450, local: 450 }, years: 3 },
   '대기업': { youth: { metro: 400, local: 400 }, normal: { metro: 0, local: 0 }, years: 2 }
 };
+const W = 10000; // 만원→원 변환
 
 let calc_saved = {};
 let calc_axisFlipped = true;
@@ -2707,7 +2708,7 @@ function calc_calcDanggi(corp, diff) {
     capYm = result.ym; capYl = result.yl; capNm = result.nm; capNl = result.nl;
   }
   const inc = { ym: calc_truncW(capYm), yl: calc_truncW(capYl), nm: calc_truncW(capNm), nl: calc_truncW(capNl) };
-  const amt = { ym: calc_truncAmt(inc.ym*r.youth.metro), yl: calc_truncAmt(inc.yl*r.youth.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
+  const amt = { ym: calc_truncAmt(inc.ym*r.youth.metro*W), yl: calc_truncAmt(inc.yl*r.youth.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
   return { inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl };
 }
 
@@ -2725,10 +2726,10 @@ function calc_calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi) {
     const maintained = Math.min(dTotal, totalKept);
     const scale = dTotal > 0 ? maintained / dTotal : 0;
     inc = { ym: calc_truncW(danggiInc.ym*scale), yl: calc_truncW(danggiInc.yl*scale), nm: calc_truncW(danggiInc.nm*scale), nl: calc_truncW(danggiInc.nl*scale) };
-    amt = { ym: calc_truncAmt(inc.ym*r.normal.metro), yl: calc_truncAmt(inc.yl*r.normal.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
+    amt = { ym: calc_truncAmt(inc.ym*r.normal.metro*W), yl: calc_truncAmt(inc.yl*r.normal.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
   } else {
     inc = { ym: calc_truncW(Math.min(danggiInc.ym,kept.ym)), yl: calc_truncW(Math.min(danggiInc.yl,kept.yl)), nm: calc_truncW(Math.min(danggiInc.nm,kept.nm)), nl: calc_truncW(Math.min(danggiInc.nl,kept.nl)) };
-    amt = { ym: calc_truncAmt(inc.ym*r.youth.metro), yl: calc_truncAmt(inc.yl*r.youth.local), nm: calc_truncAmt(inc.nm*r.normal.metro), nl: calc_truncAmt(inc.nl*r.normal.local) };
+    amt = { ym: calc_truncAmt(inc.ym*r.youth.metro*W), yl: calc_truncAmt(inc.yl*r.youth.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
   }
   return { kept, inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, youthDec };
 }
@@ -2791,7 +2792,7 @@ function calc_sahuCheck(corp, wD, wC, dInc, mult) {
     }
   }
 
-  raw = calc_truncAmt(raw * mult);
+  raw = calc_truncAmt(raw * mult * W);
   return { type, raw, yDec, tDec };
 }
 
@@ -3018,19 +3019,19 @@ function calc_renderTimelines(all) {
         h += '<div class="tl-card-amount" style="color:#ccc;">미입력</div>';
       } else if (item.role==='당기') {
         h += '<div class="tl-card-role"><span class="badge badge-danggi">당기공제</span></div>';
-        h += `<div class="tl-card-amount blue">+${calc_fmt(item.credit)}만</div>`;
+        h += `<div class="tl-card-amount blue">+${calc_fmt(item.credit)}원</div>`;
         const yInc = item.danggi.inc.ym+item.danggi.inc.yl;
         const nInc = item.danggi.inc.nm+item.danggi.inc.nl;
         h += `<div class="tl-card-detail">청년+${calc_fmtD(yInc)} / 비청년+${calc_fmtD(nInc)}</div>`;
       } else {
         h += `<div class="tl-card-role"><span class="badge badge-addtl">${item.role}</span></div>`;
-        h += `<div class="tl-card-amount green">+${calc_fmt(item.credit)}만</div>`;
+        h += `<div class="tl-card-amount green">+${calc_fmt(item.credit)}원</div>`;
         if (item.addtl && item.addtl.youthDec) h += `<div style="margin-top:2px;"><span class="badge badge-warn">청년감소\u2192비청년단가</span></div>`;
         if (item.sahu) h += `<div style="margin-top:4px;">${calc_sahuBadge(item.sahu.type)}</div>`;
         if (item.chugjing>0) {
-          h += `<div class="tl-card-chug">추징 -${calc_fmt(item.chugjing)}만</div>`;
+          h += `<div class="tl-card-chug">추징 -${calc_fmt(item.chugjing)}원</div>`;
           const n = item.credit - item.chugjing;
-          h += `<div class="tl-card-net" style="color:${n>=0?'var(--accent2)':'var(--warn)'};">순 ${calc_fmt(n)}만</div>`;
+          h += `<div class="tl-card-net" style="color:${n>=0?'var(--accent2)':'var(--warn)'};">순 ${calc_fmt(n)}원</div>`;
         }
       }
       h += '</div>';
@@ -3040,11 +3041,11 @@ function calc_renderTimelines(all) {
     if (hasAnyCredit) {
       h += '<div class="tl-progress">';
       h += '<div class="progress-bar">';
-      h += `<div class="progress-fill ${totalChug>0?'has-chug':''}" style="width:${pct}%">${calc_fmt(net)}만원</div>`;
+      h += `<div class="progress-fill ${totalChug>0?'has-chug':''}" style="width:${pct}%">${calc_fmt(net)}원</div>`;
       h += '</div>';
-      h += `<div class="progress-label">누적 순공제 ${calc_fmt(net)}만원`;
-      if (totalChug>0) h += ` (공제 ${calc_fmt(totalCredit)}만 - 추징 ${calc_fmt(totalChug)}만)`;
-      h += ` / 최대 ${calc_fmt(maxPossible)}만원 (${maxY}년 완전유지)</div>`;
+      h += `<div class="progress-label">누적 순공제 ${calc_fmt(net)}원`;
+      if (totalChug>0) h += ` (공제 ${calc_fmt(totalCredit)}원 - 추징 ${calc_fmt(totalChug)}원)`;
+      h += ` / 최대 ${calc_fmt(maxPossible)}원 (${maxY}년 완전유지)</div>`;
       h += '</div>';
     }
 
@@ -3066,12 +3067,12 @@ function calc_renderTimelines(all) {
         h += `당기(${startY}): `;
         h += `청년 수도권+${calc_fmtD(danggi.inc.ym)}\u00D7${calc_fmt(rt.youth.metro)} + 비수도권+${calc_fmtD(danggi.inc.yl)}\u00D7${calc_fmt(rt.youth.local)}`;
         if (hasN) h += ` + 비청년 수도권+${calc_fmtD(danggi.inc.nm)}\u00D7${calc_fmt(rt.normal.metro)} + 비수도권+${calc_fmtD(danggi.inc.nl)}\u00D7${calc_fmt(rt.normal.local)}`;
-        h += ` = <code>${calc_fmt(danggi.total)}만</code><br>`;
+        h += ` = <code>${calc_fmt(danggi.total)}원</code><br>`;
       } else {
         const yI = danggi.inc.ym+danggi.inc.yl, nI = danggi.inc.nm+danggi.inc.nl;
         h += `당기(${startY}): 청년+${calc_fmtD(yI)}\u00D7${calc_fmt(rt.youth.metro)}`;
         if (hasN) h += ` + 비청년+${calc_fmtD(nI)}\u00D7${calc_fmt(rt.normal.metro)}`;
-        h += ` = <code>${calc_fmt(danggi.total)}만</code><br>`;
+        h += ` = <code>${calc_fmt(danggi.total)}원</code><br>`;
       }
 
       tl.forEach(item => {
@@ -3083,18 +3084,18 @@ function calc_renderTimelines(all) {
           if (isS) {
             h += `유지 \u2192 청년 수도권${calc_fmtD(item.addtl.inc.ym)}\u00D7${calc_fmt(yRate.metro)} + 비수도권${calc_fmtD(item.addtl.inc.yl)}\u00D7${calc_fmt(yRate.local)}`;
             if (hasN) h += ` + 비청년 수도권${calc_fmtD(item.addtl.inc.nm)}\u00D7${calc_fmt(rt.normal.metro)} + 비수도권${calc_fmtD(item.addtl.inc.nl)}\u00D7${calc_fmt(rt.normal.local)}`;
-            h += ` = <code>${calc_fmt(item.credit)}만</code>`;
+            h += ` = <code>${calc_fmt(item.credit)}원</code>`;
           } else {
             const kY = item.addtl.inc.ym+item.addtl.inc.yl, kN = item.addtl.inc.nm+item.addtl.inc.nl;
             h += `유지 \u2192 청년${calc_fmtD(kY)}\u00D7${calc_fmt(yRate.metro)}`;
             if (hasN) h += ` + 비청년${calc_fmtD(kN)}\u00D7${calc_fmt(rt.normal.metro)}`;
-            h += ` = <code>${calc_fmt(item.credit)}만</code>`;
+            h += ` = <code>${calc_fmt(item.credit)}원</code>`;
           }
         }
         if (item.sahu && item.sahu.type!=='ok') {
-          h += ` | 사후관리(${item.sahu.type}): 산출<code>${calc_fmt(item.sahu.raw)}만</code>`;
-          if (item.prevChug>0) h += `-\u2460<code>${calc_fmt(item.prevChug)}만</code>`;
-          h += ` (한도${calc_fmt(item.limit)}만) \u2192 추징<code>${calc_fmt(item.chugjing)}만</code>`;
+          h += ` | 사후관리(${item.sahu.type}): 산출<code>${calc_fmt(item.sahu.raw)}원</code>`;
+          if (item.prevChug>0) h += `-\u2460<code>${calc_fmt(item.prevChug)}원</code>`;
+          h += ` (한도${calc_fmt(item.limit)}원) \u2192 추징<code>${calc_fmt(item.chugjing)}원</code>`;
         } else if (item.sahu) {
           h += ' | 사후관리: 정상';
         }
@@ -3107,13 +3108,13 @@ function calc_renderTimelines(all) {
         h += '<div class="f-title">검증 ("처음부터 감소 상태로 계산")</div>';
         if (v.youthDec) h += `<span style="color:var(--warn);">\u203B 청년감소 \u2192 비청년단가 적용</span><br>`;
         h += `${v.lastYear}년 기준 유효증가: <code>${calc_fmtD(v.totalEffInc)}명</code> \u2192 `;
-        h += `연 <code>${calc_fmt(v.fsPerYear)}만</code> \u00D7 ${v.numY}년 = <code>${calc_fmt(v.fsTotal)}만</code><br>`;
-        h += `실제 순공제 합계: <code>${calc_fmt(v.actualNet)}만</code><br>`;
+        h += `연 <code>${calc_fmt(v.fsPerYear)}원</code> \u00D7 ${v.numY}년 = <code>${calc_fmt(v.fsTotal)}원</code><br>`;
+        h += `실제 순공제 합계: <code>${calc_fmt(v.actualNet)}원</code><br>`;
         if (v.match) {
-          h += `<span class="verify-pass">\u2713 검증 통과</span> (${calc_fmt(v.fsTotal)}만 = ${calc_fmt(v.actualNet)}만)`;
+          h += `<span class="verify-pass">\u2713 검증 통과</span> (${calc_fmt(v.fsTotal)}원 = ${calc_fmt(v.actualNet)}원)`;
         } else {
           const diff = v.fsTotal - v.actualNet;
-          h += `<span class="verify-fail">\u2717 불일치</span> (차이: ${calc_fmt(diff)}만`;
+          h += `<span class="verify-fail">\u2717 불일치</span> (차이: ${calc_fmt(diff)}원`;
           if (diff > 0) h += ' - 중간연도 추가추징 미환급분 추정';
           h += ')';
         }
@@ -3219,8 +3220,8 @@ function calc_renderSummary(all, from, to) {
   const grandNet = grandCredit - grandChug;
   h += '<div class="highlight-box">';
   h += `<div class="label">입력 기간 내 총 순공제액</div>`;
-  h += `<div class="big">${calc_fmt(grandNet)}만원</div>`;
-  if (grandChug>0) h += `<div style="font-size:12px;opacity:.8;margin-top:4px;">총 공제 ${calc_fmt(grandCredit)}만 - 총 추징 ${calc_fmt(grandChug)}만</div>`;
+  h += `<div class="big">${calc_fmt(grandNet)}원</div>`;
+  if (grandChug>0) h += `<div style="font-size:12px;opacity:.8;margin-top:4px;">총 공제 ${calc_fmt(grandCredit)}원 - 총 추징 ${calc_fmt(grandChug)}원</div>`;
   h += '</div>';
 
   document.getElementById('summary-area').innerHTML = h;
@@ -3475,7 +3476,7 @@ async function calc_exportExcel() {
       const vRows=[
         ['유효증가 인원',v.totalEffInc,nf2],['연간 공제액',v.fsPerYear,nf],['적용 연수',v.numY,null],
         ['"처음부터" 합계',v.fsTotal,nf],['실제 순공제 합계',v.actualNet,nf],
-        ['결과',v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'만)',null],
+        ['결과',v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'원)',null],
       ];
       vRows.forEach(([label,val,fmt],idx)=>{
         dc(ws,r2,0,label); const vc=dc(ws,r2,1,val,fmt);
