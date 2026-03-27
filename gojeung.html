@@ -2707,14 +2707,14 @@ function syncYear(sourceStartY, y, suffix) {
   const srcEl = document.getElementById('w'+sourceStartY+'-'+y+'-'+suffix);
   if (!srcEl) return;
   const raw = parseFloat(srcEl.value);
-  if (isNaN(raw)) return;
+  if (isNaN(raw) || raw === 0) return;
   const val = (Math.round(raw * 100) / 100).toFixed(2);
   const from = getFrom(), to = getTo();
   for (let sy = from+1; sy <= to; sy++) {
     if (sy === sourceStartY) continue;
     const targetEl = document.getElementById('w'+sy+'-'+y+'-'+suffix);
     if (!targetEl) continue;
-    if (targetEl.value === '0' || targetEl.value === '') {
+    if (targetEl.value === '' || parseFloat(targetEl.value) === 0) {
       targetEl.value = val;
       updateTotPlaceholder(sy, y);
     }
@@ -2824,27 +2824,35 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
     const ylDec = Math.max(0, rp2(wD.yl-wC.yl));
     const nmDec = Math.max(0, rp2(wD.nm-wC.nm));
     const nlDec = Math.max(0, rp2(wD.nl-wC.nl));
-    const sumYDec = rp2(ymDec+ylDec);
-    const sumNDec = rp2(nmDec+nlDec);
-    const ymR = sumYDec>0 ? ymDec/sumYDec : 0;
-    const ylR = sumYDec>0 ? ylDec/sumYDec : 0;
-    const nmR = sumNDec>0 ? nmDec/sumNDec : 0;
-    const nlR = sumNDec>0 ? nlDec/sumNDec : 0;
 
     if (type==='youth_only') {
-      const effY = Math.min(yDec, yInc);
-      raw = (effY*ymR)*(r.youth.metro-r.normal.metro)
-          + (effY*ylR)*(r.youth.local-r.normal.local);
+      // 지역별 감소를 당기 증가 인원으로 cap
+      const effYm = Math.min(ymDec, dInc.ym);
+      const effYl = Math.min(ylDec, dInc.yl);
+      raw = effYm*(r.youth.metro-r.normal.metro)
+          + effYl*(r.youth.local-r.normal.local);
     } else if (type==='case_a') {
-      const eff=Math.min(yDec,yInc), conv=Math.max(0,eff-tDec), exit=tDec;
-      raw = (conv*ymR)*(r.youth.metro-r.normal.metro)
-          + (conv*ylR)*(r.youth.local-r.normal.local);
-      raw += (exit*ymR)*r.youth.metro
-           + (exit*ylR)*r.youth.local;
+      const effYm = Math.min(ymDec, dInc.ym);
+      const effYl = Math.min(ylDec, dInc.yl);
+      // 전체감소 중 지역별 배분: 수도권/비수도권 각각의 전체 감소
+      const mTotDec = Math.max(0, rp2((wD.ym+wD.nm)-(wC.ym+wC.nm)));
+      const lTotDec = Math.max(0, rp2((wD.yl+wD.nl)-(wC.yl+wC.nl)));
+      const exitM = Math.min(effYm, mTotDec);
+      const exitL = Math.min(effYl, lTotDec);
+      const convM = Math.max(0, effYm - exitM);
+      const convL = Math.max(0, effYl - exitL);
+      raw = convM*(r.youth.metro-r.normal.metro)
+          + convL*(r.youth.local-r.normal.local);
+      raw += exitM*r.youth.metro
+           + exitL*r.youth.local;
     } else {
-      const effY=Math.min(yDec,tDec), effN=Math.min(nDec,tDec);
-      raw = (effY*ymR)*r.youth.metro + (effY*ylR)*r.youth.local
-          + (effN*nmR)*r.normal.metro + (effN*nlR)*r.normal.local;
+      // case_b: 지역별 감소를 당기 증가 인원으로 cap
+      const effYm = Math.min(ymDec, dInc.ym);
+      const effYl = Math.min(ylDec, dInc.yl);
+      const effNm = Math.min(nmDec, dInc.nm);
+      const effNl = Math.min(nlDec, dInc.nl);
+      raw = effYm*r.youth.metro + effYl*r.youth.local
+          + effNm*r.normal.metro + effNl*r.normal.local;
     }
   }
 
@@ -3011,17 +3019,30 @@ function calcVerification(tl, danggi, corp, startY) {
   const wDanggi = getW(startY, startY);
   const youthDec = youthW(wLast) < youthW(wDanggi);
 
-  // 마지막 연도 상태가 처음부터 존재했다면 → calcDanggi 동일 로직으로 계산
-  const vDiff = diffW(wLast, wPrev);
-  const vDanggi = calcDanggi(corp, vDiff, startY);
+  // 원래 당기 증가분 기준, 청년감소 시 비청년단가 적용하여 검증
+  const r = getRates(corp, startY);
+  const inc = danggi.inc; // 원래 당기 증가 인원 사용
+  let fsPerYear;
+  if (youthDec) {
+    // 청년을 비청년으로 간주: 청년단가 대신 비청년단가 적용
+    const isS = (corp==='중소');
+    if (isS) {
+      fsPerYear = truncAmt(inc.ym*r.normal.metro*W) + truncAmt(inc.yl*r.normal.local*W)
+                + truncAmt(inc.nm*r.normal.metro*W) + truncAmt(inc.nl*r.normal.local*W);
+    } else {
+      fsPerYear = truncAmt((inc.ym+inc.yl)*r.normal.metro*W)
+                + truncAmt((inc.nm+inc.nl)*r.normal.metro*W);
+    }
+  } else {
+    fsPerYear = danggi.total; // 청년 유지 시 원래 당기공제액 그대로
+  }
 
-  const effInc = vDanggi.inc;
-  const fsPerYear = vDanggi.total;
+  const effInc = inc;
   const numY = dataItems.length;
   const fsTotal = fsPerYear * numY;
   const actualNet = dataItems.reduce((s,t) => s + t.credit - t.chugjing, 0);
   const match = Math.abs(fsTotal - actualNet) < 5000;
-  const totalEffInc = effInc.ym + effInc.yl + effInc.nm + effInc.nl;
+  const totalEffInc = inc.ym + inc.yl + inc.nm + inc.nl;
 
   return { effInc, totalEffInc, fsPerYear, fsTotal, actualNet, numY, match, lastYear: last.year, youthDec };
 }
@@ -3160,9 +3181,9 @@ function renderTimelines(all) {
       const v = calcVerification(tl, danggi, corp, startY);
       if (v) {
         h += '<div class="f-verify">';
-        h += '<div class="f-title">검증 ("처음부터 감소 상태로 계산")</div>';
-        if (v.youthDec) h += `<span style="color:var(--warn);">※ 청년감소 → 비청년단가 적용</span><br>`;
-        h += `${v.lastYear}년 기준 유효증가: <code>${fmtD(v.totalEffInc)}명</code> → `;
+        h += `<div class="f-title">검증 (당기 증가분${v.youthDec?' · 청년→비청년단가':''} 기준)</div>`;
+        if (v.youthDec) h += `<span style="color:var(--warn);">※ 청년감소 → 비청년단가로 재계산</span><br>`;
+        h += `당기 증가: <code>${fmtD(v.totalEffInc)}명</code> → `;
         h += `연 <code>${fmt(v.fsPerYear)}원</code> × ${v.numY}년 = <code>${fmt(v.fsTotal)}원</code><br>`;
         h += `실제 순공제 합계: <code>${fmt(v.actualNet)}원</code><br>`;
         if (v.match) {
@@ -3667,8 +3688,8 @@ window.calcExportExcel = async function() {
       ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
       r2++;
       const vRows=[
-        ['유효증가 인원',v.totalEffInc,nf2],['연간 공제액',v.fsPerYear,nf],['적용 연수',v.numY,null],
-        ['"처음부터" 합계',v.fsTotal,nf],['실제 순공제 합계',v.actualNet,nf],
+        ['당기 증가 인원',v.totalEffInc,nf2],['연간 공제액'+(v.youthDec?' (비청년단가)':''),v.fsPerYear,nf],['적용 연수',v.numY,null],
+        ['검증 합계',v.fsTotal,nf],['실제 순공제 합계',v.actualNet,nf],
         ['결과',v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'원)',null],
       ];
       vRows.forEach(([label,val,fmt],idx)=>{
