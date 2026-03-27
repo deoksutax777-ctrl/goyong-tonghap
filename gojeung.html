@@ -3570,7 +3570,9 @@ window.calcExportExcel = async function() {
     r2++;
 
     // ── 상시근로자수 테이블: 명세 시트 매칭 연도는 수식 참조 ──
+    const wRowMap = {};
     tl.forEach((item,idx) => {
+      wRowMap[item.role] = r2;
       const w=getW(startY,item.year);
       dc(ws,r2,0,item.year+'년'); dc(ws,r2,1,item.role);
       let ci=2;
@@ -3613,8 +3615,12 @@ window.calcExportExcel = async function() {
     // ── 증감 인원: 당기 시작연도가 명세서 당기연도와 같으면 수식 ──
     const canFormula = hasSpec && (startY === specTaxY);
     let dIdx=0;
+    let danggiCalcRow = null;
+    const calcRowMap = {};
     tl.forEach(item => {
       if(item.role==='전기') return;
+      if(item.role==='당기') danggiCalcRow = r2;
+      calcRowMap[item.role] = r2;
       dc(ws,r2,0,item.year+'년'); dc(ws,r2,1,item.role);
       let ci=2;
       const yDec = item.addtl && item.addtl.youthDec;
@@ -3648,24 +3654,121 @@ window.calcExportExcel = async function() {
       if(isS){
         const cC=L(2)+r2, dC=L(3)+r2, eC=L(4)+r2, fC=L(5)+r2;
         if(yDec){
-          amtFormula='INT('+cC+'*'+refNM+')+INT('+dC+'*'+refNL+')+INT('+eC+'*'+refNM+')+INT('+fC+'*'+refNL+')';
+          amtFormula='INT('+cC+'*'+refNM+'*10000)+INT('+dC+'*'+refNL+'*10000)+INT('+eC+'*'+refNM+'*10000)+INT('+fC+'*'+refNL+'*10000)';
         } else {
-          amtFormula='INT('+cC+'*'+refYM+')+INT('+dC+'*'+refYL+')+INT('+eC+'*'+refNM+')+INT('+fC+'*'+refNL+')';
+          amtFormula='INT('+cC+'*'+refYM+'*10000)+INT('+dC+'*'+refYL+'*10000)+INT('+eC+'*'+refNM+'*10000)+INT('+fC+'*'+refNL+'*10000)';
         }
       } else if(hasN){
         const cC=L(2)+r2, dC=L(3)+r2;
         if(yDec){
-          amtFormula='INT('+cC+'*'+refNM+')+INT('+dC+'*'+refNM+')';
+          amtFormula='INT('+cC+'*'+refNM+'*10000)+INT('+dC+'*'+refNM+'*10000)';
         } else {
-          amtFormula='INT('+cC+'*'+refYM+')+INT('+dC+'*'+refNM+')';
+          amtFormula='INT('+cC+'*'+refYM+'*10000)+INT('+dC+'*'+refNM+'*10000)';
         }
       } else {
         const cC=L(2)+r2;
-        amtFormula='INT('+cC+'*'+refYM+')';
+        amtFormula='INT('+cC+'*'+refYM+'*10000)';
       }
       fc(ws,r2,amtCI,amtFormula,item.credit,nf);
 
-      dc(ws,r2,chugCI,item.chugjing,nf);
+      // ── 추징액 수식 ──
+      if(item.role==='당기'){
+        dc(ws,r2,chugCI,0,nf);
+      } else if(item.addtl && item.idx) {
+        const wDR = wRowMap['당기'];
+        const wCR = wRowMap[item.role];
+        const dIR = danggiCalcRow;
+        const amtL = L(amtCI);
+        const chugL = L(chugCI);
+        const multVal = item.mult;
+        let chugFormula = null;
+
+        if(isS){
+          // 중소: 4-region sahu formula
+          const ymD='MAX(0,C'+wDR+'-C'+wCR+')', ylD='MAX(0,D'+wDR+'-D'+wCR+')';
+          const nmD='MAX(0,E'+wDR+'-E'+wCR+')', nlD='MAX(0,F'+wDR+'-F'+wCR+')';
+          const yD='('+ymD+'+'+ylD+')';
+          const tD='MAX(0,G'+wDR+'-G'+wCR+')';
+          const eYm='MIN('+ymD+',C'+dIR+')', eYl='MIN('+ylD+',D'+dIR+')';
+          const eNm='MIN('+nmD+',E'+dIR+')', eNl='MIN('+nlD+',F'+dIR+')';
+
+          const yo=eYm+'*('+refYM+'-'+refNM+')+'+eYl+'*('+refYL+'-'+refNL+')';
+          const cb=eYm+'*'+refYM+'+'+eYl+'*'+refYL+'+'+eNm+'*'+refNM+'+'+eNl+'*'+refNL;
+
+          const mTD='MAX(0,(C'+wDR+'+E'+wDR+')-(C'+wCR+'+E'+wCR+'))';
+          const lTD='MAX(0,(D'+wDR+'+F'+wDR+')-(D'+wCR+'+F'+wCR+'))';
+          const exM='MIN('+eYm+','+mTD+')', exL='MIN('+eYl+','+lTD+')';
+          const cvM='MAX(0,'+eYm+'-'+exM+')', cvL='MAX(0,'+eYl+'-'+exL+')';
+          const ca=cvM+'*('+refYM+'-'+refNM+')+'+cvL+'*('+refYL+'-'+refNL+')+'+exM+'*'+refYM+'+'+exL+'*'+refYL;
+
+          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'*10000)';
+
+          if(item.idx===1){
+            chugFormula='MIN('+raw+','+amtL+danggiCalcRow+')';
+          } else {
+            const prevCR = calcRowMap[(item.idx-1)+'차 추가'];
+            const prevChug=chugL+prevCR;
+            const limit=amtL+danggiCalcRow+'+'+amtL+prevCR;
+            chugFormula='MIN(MAX(0,'+raw+'-'+prevChug+'),MAX(0,'+limit+'-'+prevChug+'))';
+          }
+        } else if(hasN){
+          // 중견: C=청년, D=비청년, E=합계
+          const yD='MAX(0,C'+wDR+'-C'+wCR+')';
+          const nD='MAX(0,D'+wDR+'-D'+wCR+')';
+          const tD='MAX(0,E'+wDR+'-E'+wCR+')';
+          const yInc='C'+dIR;
+          const eff='MIN('+yD+','+yInc+')';
+
+          const yo=eff+'*('+refYM+'-'+refNM+')';
+          const cb='MIN('+yD+','+tD+')*'+refYM+'+MIN('+nD+','+tD+')*'+refNM;
+          const conv='MAX(0,'+eff+'-'+tD+')';
+          const ca=conv+'*('+refYM+'-'+refNM+')+'+tD+'*'+refYM;
+
+          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'*10000)';
+
+          if(item.idx===1){
+            chugFormula='MIN('+raw+','+amtL+danggiCalcRow+')';
+          } else {
+            const prevCR = calcRowMap[(item.idx-1)+'차 추가'];
+            const prevChug=chugL+prevCR;
+            const limit=amtL+danggiCalcRow+'+'+amtL+prevCR;
+            chugFormula='MIN(MAX(0,'+raw+'-'+prevChug+'),MAX(0,'+limit+'-'+prevChug+'))';
+          }
+        } else {
+          // 대기업: C=청년, D=합계 (청년만, normal rate=0)
+          const yD='MAX(0,C'+wDR+'-C'+wCR+')';
+          const tD='MAX(0,D'+wDR+'-D'+wCR+')';
+          const yInc='C'+dIR;
+          const eff='MIN('+yD+','+yInc+')';
+          const conv='MAX(0,'+eff+'-'+tD+')';
+
+          // youth_only: eff * refYM (since normalRate=0, youthRate-normalRate = youthRate)
+          const yo=eff+'*'+refYM;
+          // case_b: MIN(yDec,tDec)*refYM (only youth matters)
+          const cb='MIN('+yD+','+tD+')*'+refYM;
+          // case_a: conv*refYM + tDec*refYM = (conv+tDec)*refYM, but conv*(yR-nR)+tD*yR
+          const ca=conv+'*'+refYM+'+'+tD+'*'+refYM;
+
+          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'*10000)';
+
+          if(item.idx===1){
+            chugFormula='MIN('+raw+','+amtL+danggiCalcRow+')';
+          } else {
+            const prevCR = calcRowMap[(item.idx-1)+'차 추가'];
+            const prevChug=chugL+prevCR;
+            const limit=amtL+danggiCalcRow+'+'+amtL+prevCR;
+            chugFormula='MIN(MAX(0,'+raw+'-'+prevChug+'),MAX(0,'+limit+'-'+prevChug+'))';
+          }
+        }
+
+        if(chugFormula){
+          fc(ws,r2,chugCI,chugFormula,item.chugjing,nf);
+        } else {
+          dc(ws,r2,chugCI,item.chugjing,nf);
+        }
+      } else {
+        dc(ws,r2,chugCI,item.chugjing,nf);
+      }
 
       fc(ws,r2,netCI,L(amtCI)+r2+'-'+L(chugCI)+r2,item.credit-item.chugjing,nf);
 
