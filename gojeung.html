@@ -3746,23 +3746,23 @@ window.calcExportExcel = async function() {
         // 추가공제: youthDec 여부에 따라 수식 다름
         const wC=wRowMap[item.role], wP=wRowMap['전기'];
         if(yDec){
-          // 청년감소 시: 당기inc × MIN(1, 전체유지/당기총증가) (비례 스케일)
+          // 청년감소 시: INT(당기inc × MIN(1, 전체유지/당기총증가)*100)/100 (비례 스케일 + truncW)
           if(isS){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+'+E'+danggiCalcRow+'+F'+danggiCalcRow+')';
             const kept='MAX(0,G'+wC+'-G'+wP+')';
             const scl='MIN(1,IF('+dSum+'=0,0,'+kept+'/'+dSum+'))';
-            fc(ws,r2,ci++,'C'+danggiCalcRow+'*'+scl,item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'D'+danggiCalcRow+'*'+scl,item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'E'+danggiCalcRow+'*'+scl,item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'F'+danggiCalcRow+'*'+scl,item.addtl.inc.nl,nf2);
+            fc(ws,r2,ci++,'INT(C'+danggiCalcRow+'*'+scl+'*100)/100',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'INT(D'+danggiCalcRow+'*'+scl+'*100)/100',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'INT(E'+danggiCalcRow+'*'+scl+'*100)/100',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'INT(F'+danggiCalcRow+'*'+scl+'*100)/100',item.addtl.inc.nl,nf2);
           } else if(hasN){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+')';
             const kept='MAX(0,E'+wC+'-E'+wP+')';
             const scl='MIN(1,IF('+dSum+'=0,0,'+kept+'/'+dSum+'))';
-            fc(ws,r2,ci++,'C'+danggiCalcRow+'*'+scl,rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'D'+danggiCalcRow+'*'+scl,rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+            fc(ws,r2,ci++,'INT(C'+danggiCalcRow+'*'+scl+'*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(D'+danggiCalcRow+'*'+scl+'*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
-            fc(ws,r2,ci++,'C'+danggiCalcRow+'*MIN(1,IF(C'+danggiCalcRow+'=0,0,MAX(0,D'+wC+'-D'+wP+')/C'+danggiCalcRow+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(C'+danggiCalcRow+'*MIN(1,IF(C'+danggiCalcRow+'=0,0,MAX(0,D'+wC+'-D'+wP+')/C'+danggiCalcRow+'))*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         } else {
           // 정상 유지: INT(MIN(당기증감, MAX(0, 해당연도-전기))*100)/100
@@ -3780,24 +3780,26 @@ window.calcExportExcel = async function() {
         }
       }
 
+      // 공제액 수식: INT(ROUND(inc*rate,2)*10000) — ROUND로 부동소수점 정리 후 INT
+      const ia = (cell,rate) => 'INT(ROUND('+cell+'*'+rate+',2)*10000)';
       let amtFormula;
       if(isS){
         const cC=L(2)+r2, dC=L(3)+r2, eC=L(4)+r2, fC=L(5)+r2;
         if(yDec){
-          amtFormula='INT('+cC+'*'+refNM+'*10000)+INT('+dC+'*'+refNL+'*10000)+INT('+eC+'*'+refNM+'*10000)+INT('+fC+'*'+refNL+'*10000)';
+          amtFormula=ia(cC,refNM)+'+'+ia(dC,refNL)+'+'+ia(eC,refNM)+'+'+ia(fC,refNL);
         } else {
-          amtFormula='INT('+cC+'*'+refYM+'*10000)+INT('+dC+'*'+refYL+'*10000)+INT('+eC+'*'+refNM+'*10000)+INT('+fC+'*'+refNL+'*10000)';
+          amtFormula=ia(cC,refYM)+'+'+ia(dC,refYL)+'+'+ia(eC,refNM)+'+'+ia(fC,refNL);
         }
       } else if(hasN){
         const cC=L(2)+r2, dC=L(3)+r2;
         if(yDec){
-          amtFormula='INT('+cC+'*'+refNM+'*10000)+INT('+dC+'*'+refNM+'*10000)';
+          amtFormula=ia(cC,refNM)+'+'+ia(dC,refNM);
         } else {
-          amtFormula='INT('+cC+'*'+refYM+'*10000)+INT('+dC+'*'+refNM+'*10000)';
+          amtFormula=ia(cC,refYM)+'+'+ia(dC,refNM);
         }
       } else {
         const cC=L(2)+r2;
-        amtFormula='INT('+cC+'*'+refYM+'*10000)';
+        amtFormula=ia(cC,refYM);
       }
       fc(ws,r2,amtCI,amtFormula,item.credit,nf);
 
@@ -3822,14 +3824,14 @@ window.calcExportExcel = async function() {
           const eYm='MIN('+ymD+',C'+dIR+')', eYl='MIN('+ylD+',D'+dIR+')';
           const eNm='MIN('+nmD+',E'+dIR+')', eNl='MIN('+nlD+',F'+dIR+')';
 
-          const yo=eYm+'*('+refYM+'-'+refNM+')+'+eYl+'*('+refYL+'-'+refNL+')';
-          const cb=eYm+'*'+refYM+'+'+eYl+'*'+refYL+'+'+eNm+'*'+refNM+'+'+eNl+'*'+refNL;
+          const yo='ROUND('+eYm+'*('+refYM+'-'+refNM+')+'+eYl+'*('+refYL+'-'+refNL+'),2)';
+          const cb='ROUND('+eYm+'*'+refYM+'+'+eYl+'*'+refYL+'+'+eNm+'*'+refNM+'+'+eNl+'*'+refNL+',2)';
 
           const mTD='MAX(0,(C'+wDR+'+E'+wDR+')-(C'+wCR+'+E'+wCR+'))';
           const lTD='MAX(0,(D'+wDR+'+F'+wDR+')-(D'+wCR+'+F'+wCR+'))';
           const exM='MIN('+eYm+','+mTD+')', exL='MIN('+eYl+','+lTD+')';
           const cvM='MAX(0,'+eYm+'-'+exM+')', cvL='MAX(0,'+eYl+'-'+exL+')';
-          const ca=cvM+'*('+refYM+'-'+refNM+')+'+cvL+'*('+refYL+'-'+refNL+')+'+exM+'*'+refYM+'+'+exL+'*'+refYL;
+          const ca='ROUND('+cvM+'*('+refYM+'-'+refNM+')+'+cvL+'*('+refYL+'-'+refNL+')+'+exM+'*'+refYM+'+'+exL+'*'+refYL+',2)';
 
           const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'*10000)';
 
@@ -3849,10 +3851,10 @@ window.calcExportExcel = async function() {
           const yInc='C'+dIR;
           const eff='MIN('+yD+','+yInc+')';
 
-          const yo=eff+'*('+refYM+'-'+refNM+')';
-          const cb='MIN('+yD+','+tD+')*'+refYM+'+MIN('+nD+','+tD+')*'+refNM;
+          const yo='ROUND('+eff+'*('+refYM+'-'+refNM+'),2)';
+          const cb='ROUND(MIN('+yD+','+tD+')*'+refYM+'+MIN('+nD+','+tD+')*'+refNM+',2)';
           const conv='MAX(0,'+eff+'-'+tD+')';
-          const ca=conv+'*('+refYM+'-'+refNM+')+'+tD+'*'+refYM;
+          const ca='ROUND('+conv+'*('+refYM+'-'+refNM+')+'+tD+'*'+refYM+',2)';
 
           const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'*10000)';
 
@@ -3872,12 +3874,9 @@ window.calcExportExcel = async function() {
           const eff='MIN('+yD+','+yInc+')';
           const conv='MAX(0,'+eff+'-'+tD+')';
 
-          // youth_only: eff * refYM (since normalRate=0, youthRate-normalRate = youthRate)
-          const yo=eff+'*'+refYM;
-          // case_b: MIN(yDec,tDec)*refYM (only youth matters)
-          const cb='MIN('+yD+','+tD+')*'+refYM;
-          // case_a: conv*refYM + tDec*refYM = (conv+tDec)*refYM, but conv*(yR-nR)+tD*yR
-          const ca=conv+'*'+refYM+'+'+tD+'*'+refYM;
+          const yo='ROUND('+eff+'*'+refYM+',2)';
+          const cb='ROUND(MIN('+yD+','+tD+')*'+refYM+',2)';
+          const ca='ROUND('+conv+'*'+refYM+'+'+tD+'*'+refYM+',2)';
 
           const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'*10000)';
 
