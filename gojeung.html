@@ -3687,6 +3687,7 @@ window.calcExportExcel = async function() {
 
     // ── 증감 인원: 당기 시작연도가 명세서 당기연도와 같으면 수식 ──
     const canFormula = hasSpec && (startY === specTaxY);
+    const ia = (cell,rate) => 'INT('+cell+'*'+rate+')'; // 공제액 수식 헬퍼
     let dIdx=0;
     let danggiCalcRow = null;
     const calcRowMap = {};
@@ -3781,8 +3782,7 @@ window.calcExportExcel = async function() {
         }
       }
 
-      // 공제액 수식: INT(inc*rate) — 단가가 원 단위이므로 *10000 불필요
-      const ia = (cell,rate) => 'INT('+cell+'*'+rate+')';
+      // 공제액 수식: INT(inc*rate)
       let amtFormula;
       if(isS){
         const cC=L(2)+r2, dC=L(3)+r2, eC=L(4)+r2, fC=L(5)+r2;
