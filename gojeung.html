@@ -2707,14 +2707,16 @@ function syncYear(sourceStartY, y, suffix) {
   const srcEl = document.getElementById('w'+sourceStartY+'-'+y+'-'+suffix);
   if (!srcEl) return;
   const raw = parseFloat(srcEl.value);
-  if (isNaN(raw) || raw === 0) return;
+  if (isNaN(raw)) return;
   const val = (Math.round(raw * 100) / 100).toFixed(2);
   const from = getFrom(), to = getTo();
   for (let sy = from+1; sy <= to; sy++) {
     if (sy === sourceStartY) continue;
-    const targetEl = document.getElementById('w'+sy+'-'+y+'-'+suffix);
+    const tid = 'w'+sy+'-'+y+'-'+suffix;
+    const targetEl = document.getElementById(tid);
     if (!targetEl) continue;
-    if (targetEl.value === '' || parseFloat(targetEl.value) === 0) {
+    const tv = parseFloat(targetEl.value);
+    if (targetEl.value === '' || isNaN(tv) || tv === 0) {
       targetEl.value = val;
       updateTotPlaceholder(sy, y);
     }
