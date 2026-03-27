@@ -579,6 +579,7 @@
 <div class="main-tabs no-print">
   <button class="main-tab-btn active" id="mtab-btn-spec" onclick="switchMainTab('tab-spec')">명세서 (상시근로자수 산정)</button>
   <button class="main-tab-btn" id="mtab-btn-calc" onclick="switchMainTab('tab-calc')">세액공제 계산</button>
+  <button class="main-tab-btn" id="mtab-btn-sahoe" onclick="switchMainTab('tab-sahoe')">사회보험료 세액공제</button>
 </div>
 
 <!-- ═══════════════════════════════════════ -->
@@ -803,6 +804,69 @@
 </div>
 </div><!-- end tab-calc -->
 
+<!-- ═══════════════════════════════════════ -->
+<!-- TAB 3: 사회보험료 세액공제              -->
+<!-- ═══════════════════════════════════════ -->
+<div id="tab-sahoe" class="main-tab-content">
+<div class="container-calc">
+
+  <div class="panel no-print">
+    <div class="panel-header"><span class="icon">🛡</span> 사회보험료 세액공제 <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px;">조세특례제한법 제30조의4</span></div>
+    <div class="panel-body">
+      <div class="config-row" style="margin-bottom:12px;">
+        <div class="field-group">
+          <label>법인 구분</label>
+          <span id="sahoe-corp-type" style="padding:7px 10px;font-size:13px;font-weight:600;color:var(--accent);">-</span>
+        </div>
+        <div class="field-group">
+          <label>시작연도</label>
+          <span id="sahoe-from" style="padding:7px 10px;font-size:13px;font-weight:600;">-</span>
+        </div>
+        <div class="field-group">
+          <label>종료연도</label>
+          <span id="sahoe-to" style="padding:7px 10px;font-size:13px;font-weight:600;">-</span>
+        </div>
+        <div class="field-group" style="align-self:end;">
+          <button class="btn-calc" onclick="sahoeAutoPopulate()">📥 계산기에서 가져오기</button>
+        </div>
+      </div>
+
+      <!-- 보험요율 -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header" style="font-size:12px;">📋 사회보험 요율 (사용자부담)</div>
+        <div class="panel-body" style="padding:8px;">
+          <div class="config-row" style="margin-bottom:10px;">
+            <div class="field-group">
+              <label>고용보험 요율 (%)</label>
+              <input type="number" id="sahoe-goyong-rate" step="0.01" value="0.9" style="width:100px;" oninput="if(window._sahoeCalc) window._sahoeCalc();">
+            </div>
+            <div class="field-group">
+              <label>산재보험 요율 (%)</label>
+              <input type="number" id="sahoe-sanjae-rate" step="0.01" value="0.7" style="width:100px;" oninput="if(window._sahoeCalc) window._sahoeCalc();">
+            </div>
+          </div>
+          <div id="sahoe-rate-table" class="table-wrap"></div>
+        </div>
+      </div>
+
+      <!-- 급여 입력 -->
+      <div id="sahoe-input-area"></div>
+
+      <!-- 결과 -->
+      <div id="sahoe-results-area"></div>
+
+      <!-- 다운로드 -->
+      <div style="margin-top:16px;">
+        <button class="btn-download" id="sahoe-btn-excel" onclick="sahoeExportExcel()" disabled>
+          <span class="dl-icon">⬇</span> 엑셀 다운로드
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div><!-- end tab-sahoe -->
+
 <!-- ── Footer ──────────────────────────── -->
 <footer style="
   background: #1a2332;
@@ -840,13 +904,19 @@ function switchMainTab(tabId) {
 
   document.getElementById(tabId).classList.add('active');
 
-  if (tabId === 'tab-spec') {
-    document.getElementById('mtab-btn-spec').classList.add('active');
-  } else {
-    document.getElementById('mtab-btn-calc').classList.add('active');
-    if (window.specData) {
-      calcAutoPopulateFromSpec();
-    }
+  const tabMap = {
+    'tab-spec': 'mtab-btn-spec',
+    'tab-calc': 'mtab-btn-calc',
+    'tab-sahoe': 'mtab-btn-sahoe'
+  };
+  const btnId = tabMap[tabId];
+  if (btnId) document.getElementById(btnId).classList.add('active');
+
+  if (tabId === 'tab-calc' && window.specData) {
+    calcAutoPopulateFromSpec();
+  }
+  if (tabId === 'tab-sahoe' && typeof window.sahoeAutoPopulate === 'function') {
+    window.sahoeAutoPopulate();
   }
 }
 
@@ -3001,6 +3071,8 @@ function recalcAll() {
   const starts=[]; for(let y=from+1; y<=to; y++) starts.push(y);
   const all = starts.map(s => calcTimeline(s));
 
+  window.calcLastAll = all;
+
   renderTimelines(all);
   renderSummary(all, from, to);
 }
@@ -4010,6 +4082,503 @@ buildInput();
 recalcAll();
 
 })(); // end 계산기 IIFE
+
+
+// ═══════════════════════════════════════════
+// 사회보험료 세액공제 — ALL CODE
+// ═══════════════════════════════════════════
+(function() {
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 보험 요율 (사용자부담)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SAHOE_RATES = {
+  2018: { pension: 0.045, health: 0.0312, longterm: 0.0738 },
+  2019: { pension: 0.045, health: 0.03235, longterm: 0.0851 },
+  2020: { pension: 0.045, health: 0.03335, longterm: 0.1025 },
+  2021: { pension: 0.045, health: 0.0343, longterm: 0.1152 },
+  2022: { pension: 0.045, health: 0.03495, longterm: 0.1227 },
+  2023: { pension: 0.045, health: 0.03545, longterm: 0.1281 },
+  2024: { pension: 0.045, health: 0.03545, longterm: 0.1281 },
+};
+
+let sahoeData = {};
+let sahoeResults = {};
+
+function fmt(n) { return Math.floor(n).toLocaleString('ko-KR'); }
+function fmtD(n) { return Number.isInteger(n) ? n.toString() : n.toFixed(2); }
+function pct(n) { return (n * 100).toFixed(2) + '%'; }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Data Bridge: 계산기 → 사회보험료
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+window.sahoeAutoPopulate = function() {
+  const all = window.calcLastAll;
+  if (!all || all.length === 0) {
+    alert('먼저 [세액공제 계산] 탭에서 계산을 수행해 주세요.');
+    return;
+  }
+
+  const corpEl = document.getElementById('calc-corp-type');
+  const fromEl = document.getElementById('year-from');
+  const toEl = document.getElementById('year-to');
+  document.getElementById('sahoe-corp-type').textContent = corpEl ? corpEl.value : '-';
+  document.getElementById('sahoe-from').textContent = fromEl ? fromEl.value : '-';
+  document.getElementById('sahoe-to').textContent = toEl ? toEl.value : '-';
+
+  sahoeData = {};
+  const g = id => { const el = document.getElementById(id); return el ? (parseFloat(el.value) || 0) : 0; };
+
+  all.forEach(({startY, danggi}) => {
+    const yWorkers = g('w'+startY+'-'+startY+'-ym') + g('w'+startY+'-'+startY+'-yl');
+    const nWorkers = g('w'+startY+'-'+startY+'-nm') + g('w'+startY+'-'+startY+'-nl');
+    const yIncrease = (danggi.inc.ym || 0) + (danggi.inc.yl || 0);
+    const nIncrease = (danggi.inc.nm || 0) + (danggi.inc.nl || 0);
+
+    sahoeData[startY] = {
+      youth: { workers: yWorkers, increase: yIncrease },
+      nonYouth: { workers: nWorkers, increase: nIncrease }
+    };
+  });
+
+  buildSahoeRateTable();
+  buildSahoeInput();
+  calcSahoe();
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 요율 테이블 렌더
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function buildSahoeRateTable() {
+  const years = Object.keys(sahoeData).map(Number).sort();
+  if (years.length === 0) return;
+
+  const goyongRate = parseFloat(document.getElementById('sahoe-goyong-rate').value) / 100 || 0;
+  const sanjaeRate = parseFloat(document.getElementById('sahoe-sanjae-rate').value) / 100 || 0;
+
+  let h = '<table class="input-table" style="max-width:900px;"><thead><tr>';
+  h += '<th>구분</th>';
+  years.forEach(y => { h += `<th>${y}년</th>`; });
+  h += '</tr></thead><tbody>';
+
+  // 국민연금
+  h += '<tr><td class="lbl">국민연금</td>';
+  years.forEach(y => { const r = SAHOE_RATES[y]; h += `<td>${r ? pct(r.pension) : '-'}</td>`; });
+  h += '</tr>';
+
+  // 건강보험
+  h += '<tr><td class="lbl">건강보험</td>';
+  years.forEach(y => { const r = SAHOE_RATES[y]; h += `<td>${r ? pct(r.health) : '-'}</td>`; });
+  h += '</tr>';
+
+  // 장기요양
+  h += '<tr><td class="lbl">장기요양 (건보의 %)</td>';
+  years.forEach(y => { const r = SAHOE_RATES[y]; h += `<td>${r ? pct(r.longterm) : '-'}</td>`; });
+  h += '</tr>';
+
+  // 장기요양 사용자부담율
+  h += '<tr><td class="lbl">장기요양 사용자부담율</td>';
+  years.forEach(y => { const r = SAHOE_RATES[y]; h += `<td>${r ? pct(r.health * r.longterm) : '-'}</td>`; });
+  h += '</tr>';
+
+  // 고용보험
+  h += '<tr><td class="lbl">고용보험 (입력)</td>';
+  years.forEach(() => { h += `<td>${pct(goyongRate)}</td>`; });
+  h += '</tr>';
+
+  // 산재보험
+  h += '<tr><td class="lbl">산재보험 (입력)</td>';
+  years.forEach(() => { h += `<td>${pct(sanjaeRate)}</td>`; });
+  h += '</tr>';
+
+  // 합계
+  h += '<tr style="font-weight:700;background:var(--accent-light);"><td class="lbl" style="font-weight:700;">합계</td>';
+  years.forEach(y => {
+    const r = SAHOE_RATES[y];
+    if (r) {
+      const total = r.pension + r.health + r.health * r.longterm + goyongRate + sanjaeRate;
+      h += `<td style="color:var(--accent);font-weight:700;">${pct(total)}</td>`;
+    } else {
+      h += '<td>-</td>';
+    }
+  });
+  h += '</tr>';
+
+  h += '</tbody></table>';
+  document.getElementById('sahoe-rate-table').innerHTML = h;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 급여 입력 테이블
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function buildSahoeInput() {
+  const years = Object.keys(sahoeData).map(Number).sort();
+  if (years.length === 0) {
+    document.getElementById('sahoe-input-area').innerHTML = '';
+    return;
+  }
+
+  let h = '<div class="panel" style="margin-bottom:16px;">';
+  h += '<div class="panel-header" style="font-size:12px;">💰 급여 입력 (연간 총급여, 원 단위)</div>';
+  h += '<div class="panel-body" style="padding:8px;">';
+  h += '<table class="input-table"><thead><tr>';
+  h += '<th>연도</th><th>구분</th><th>상시근로자수</th><th>증가인원</th><th>총급여 (원)</th>';
+  h += '</tr></thead><tbody>';
+
+  years.forEach(y => {
+    const d = sahoeData[y];
+    // 청년
+    h += `<tr style="background:var(--youth-bg);">`;
+    h += `<td rowspan="2" class="lbl" style="text-align:center;font-weight:700;">${y}년</td>`;
+    h += `<td><span class="badge badge-ok">청년</span></td>`;
+    h += `<td style="font-family:var(--mono);">${fmtD(d.youth.workers)}</td>`;
+    h += `<td style="font-family:var(--mono);color:${d.youth.increase > 0 ? 'var(--accent2)' : '#999'};font-weight:600;">${fmtD(d.youth.increase)}</td>`;
+    h += `<td><input type="number" id="sahoe-pay-${y}-youth" step="1" value="0" style="width:160px;" oninput="window._sahoeCalc()"></td>`;
+    h += '</tr>';
+    // 비청년
+    h += '<tr>';
+    h += `<td><span class="badge badge-na">비청년</span></td>`;
+    h += `<td style="font-family:var(--mono);">${fmtD(d.nonYouth.workers)}</td>`;
+    h += `<td style="font-family:var(--mono);color:${d.nonYouth.increase > 0 ? 'var(--accent2)' : '#999'};font-weight:600;">${fmtD(d.nonYouth.increase)}</td>`;
+    h += `<td><input type="number" id="sahoe-pay-${y}-nonyouth" step="1" value="0" style="width:160px;" oninput="window._sahoeCalc()"></td>`;
+    h += '</tr>';
+  });
+
+  h += '</tbody></table>';
+  h += '</div></div>';
+  document.getElementById('sahoe-input-area').innerHTML = h;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 계산
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calcSahoeForYear(year) {
+  const rates = SAHOE_RATES[year];
+  if (!rates || !sahoeData[year]) return null;
+
+  const goyongRate = parseFloat(document.getElementById('sahoe-goyong-rate').value) / 100 || 0;
+  const sanjaeRate = parseFloat(document.getElementById('sahoe-sanjae-rate').value) / 100 || 0;
+
+  const totalInsRate = rates.pension + rates.health + rates.health * rates.longterm + goyongRate + sanjaeRate;
+
+  const d = sahoeData[year];
+
+  // 청년
+  const yWorkers = d.youth.workers;
+  const yIncrease = d.youth.increase;
+  const yTotalPay = parseFloat(document.getElementById('sahoe-pay-' + year + '-youth')?.value) || 0;
+  const yAvgPay = yWorkers > 0 ? yTotalPay / yWorkers : 0;
+  const yPerPerson = yAvgPay * totalInsRate;
+  const yCredit = Math.max(0, yIncrease) * yPerPerson * 1.0; // 100%
+
+  // 비청년
+  const nWorkers = d.nonYouth.workers;
+  const nIncrease = d.nonYouth.increase;
+  const nTotalPay = parseFloat(document.getElementById('sahoe-pay-' + year + '-nonyouth')?.value) || 0;
+  const nAvgPay = nWorkers > 0 ? nTotalPay / nWorkers : 0;
+  const nPerPerson = nAvgPay * totalInsRate;
+  const nCredit = Math.max(0, nIncrease) * nPerPerson * 0.5; // 50%
+
+  return {
+    year, totalInsRate,
+    youth: { workers: yWorkers, increase: yIncrease, totalPay: yTotalPay, avgPay: yAvgPay, perPerson: yPerPerson, credit: yCredit },
+    nonYouth: { workers: nWorkers, increase: nIncrease, totalPay: nTotalPay, avgPay: nAvgPay, perPerson: nPerPerson, credit: nCredit },
+    total: Math.floor(yCredit) + Math.floor(nCredit)
+  };
+}
+
+function calcSahoe() {
+  const years = Object.keys(sahoeData).map(Number).sort();
+  if (years.length === 0) return;
+
+  sahoeResults = {};
+  years.forEach(y => {
+    const r = calcSahoeForYear(y);
+    if (r) sahoeResults[y] = r;
+  });
+
+  buildSahoeRateTable();
+  renderSahoeResults();
+  document.getElementById('sahoe-btn-excel').disabled = (Object.keys(sahoeResults).length === 0);
+}
+
+window._sahoeCalc = calcSahoe;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 결과 렌더
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderSahoeResults() {
+  const years = Object.keys(sahoeResults).map(Number).sort();
+  if (years.length === 0) {
+    document.getElementById('sahoe-results-area').innerHTML = '';
+    return;
+  }
+
+  let h = '';
+
+  // 연도별 계산 카드
+  h += '<div class="panel" style="margin-bottom:16px;">';
+  h += '<div class="panel-header" style="font-size:12px;">📊 연도별 사회보험료 세액공제 계산</div>';
+  h += '<div class="panel-body">';
+
+  years.forEach(y => {
+    const r = sahoeResults[y];
+    if (!r) return;
+
+    h += `<div style="margin-bottom:20px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">`;
+    h += `<div style="font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;">`;
+    h += `<span class="tl-title-badge">${y}년</span> 사회보험료 세액공제`;
+    h += `<span style="font-size:11px;color:var(--text-muted);margin-left:auto;">보험요율 합계: ${pct(r.totalInsRate)}</span>`;
+    h += '</div>';
+
+    h += '<table class="input-table"><thead><tr>';
+    h += '<th>구분</th><th>상시근로자수</th><th>증가인원</th><th>총급여</th><th>평균급여</th><th>1인당 보험료</th><th>공제율</th><th>공제액</th>';
+    h += '</tr></thead><tbody>';
+
+    // 청년
+    h += `<tr style="background:var(--youth-bg);">`;
+    h += `<td class="lbl">청년</td>`;
+    h += `<td style="font-family:var(--mono);">${fmtD(r.youth.workers)}</td>`;
+    h += `<td style="font-family:var(--mono);font-weight:600;color:var(--accent2);">${fmtD(r.youth.increase)}</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;">${fmt(r.youth.totalPay)}</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;">${fmt(r.youth.avgPay)}</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;">${fmt(r.youth.perPerson)}</td>`;
+    h += `<td style="font-weight:600;color:var(--accent2);">100%</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;font-weight:700;color:var(--accent2);">${fmt(Math.floor(r.youth.credit))}</td>`;
+    h += '</tr>';
+
+    // 비청년
+    h += '<tr>';
+    h += `<td class="lbl">비청년</td>`;
+    h += `<td style="font-family:var(--mono);">${fmtD(r.nonYouth.workers)}</td>`;
+    h += `<td style="font-family:var(--mono);font-weight:600;">${fmtD(r.nonYouth.increase)}</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;">${fmt(r.nonYouth.totalPay)}</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;">${fmt(r.nonYouth.avgPay)}</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;">${fmt(r.nonYouth.perPerson)}</td>`;
+    h += `<td style="font-weight:600;">50%</td>`;
+    h += `<td style="font-family:var(--mono);text-align:right;font-weight:700;">${fmt(Math.floor(r.nonYouth.credit))}</td>`;
+    h += '</tr>';
+
+    // 소계
+    h += `<tr style="background:var(--accent-light);font-weight:700;">`;
+    h += `<td class="lbl" style="font-weight:700;">소계</td>`;
+    h += '<td colspan="6"></td>';
+    h += `<td style="font-family:var(--mono);text-align:right;font-weight:700;color:var(--accent);font-size:14px;">${fmt(r.total)}</td>`;
+    h += '</tr>';
+
+    h += '</tbody></table>';
+    h += '</div>';
+  });
+
+  h += '</div></div>';
+
+  // 요약 매트릭스: 시작연도 × 과세연도 (당기 + 다음해)
+  const allTaxYears = new Set();
+  years.forEach(y => {
+    allTaxYears.add(y);
+    allTaxYears.add(y + 1);
+  });
+  const taxYears = [...allTaxYears].sort();
+
+  h += '<div class="panel">';
+  h += '<div class="panel-header" style="font-size:12px;">📋 사회보험료 세액공제 총괄표 (당기 + 다음해)</div>';
+  h += '<div class="panel-body">';
+  h += '<table class="matrix"><thead><tr>';
+  h += '<th>시작연도</th>';
+  taxYears.forEach(ty => { h += `<th>${ty}년</th>`; });
+  h += '<th>합계</th>';
+  h += '</tr></thead><tbody>';
+
+  const colTotals = {};
+  taxYears.forEach(ty => { colTotals[ty] = 0; });
+  let grandTotal = 0;
+
+  years.forEach(y => {
+    const r = sahoeResults[y];
+    if (!r) return;
+    const credit = r.total;
+    h += '<tr>';
+    h += `<td class="lbl">${y}년</td>`;
+    let rowTotal = 0;
+    taxYears.forEach(ty => {
+      if (ty === y || ty === y + 1) {
+        h += `<td class="cell-credit">${fmt(credit)}</td>`;
+        colTotals[ty] += credit;
+        rowTotal += credit;
+      } else {
+        h += '<td style="color:#ddd;">-</td>';
+      }
+    });
+    h += `<td class="col-total">${fmt(rowTotal)}</td>`;
+    grandTotal += rowTotal;
+    h += '</tr>';
+  });
+
+  // 합계 행
+  h += '<tr class="row-total">';
+  h += '<td class="lbl">합계</td>';
+  taxYears.forEach(ty => {
+    h += `<td>${fmt(colTotals[ty])}</td>`;
+  });
+  h += `<td>${fmt(grandTotal)}</td>`;
+  h += '</tr>';
+
+  h += '</tbody></table>';
+
+  // 총액 하이라이트
+  h += `<div class="highlight-box"><div class="label">사회보험료 세액공제 총액 (당기+다음해)</div><div class="big">${fmt(grandTotal)} 원</div></div>`;
+
+  h += '</div></div>';
+
+  document.getElementById('sahoe-results-area').innerHTML = h;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 엑셀 다운로드
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+window.sahoeExportExcel = function() {
+  const years = Object.keys(sahoeResults).map(Number).sort();
+  if (years.length === 0) return;
+
+  const wb = new ExcelJS.Workbook();
+  const goyongRate = parseFloat(document.getElementById('sahoe-goyong-rate').value) / 100 || 0;
+  const sanjaeRate = parseFloat(document.getElementById('sahoe-sanjae-rate').value) / 100 || 0;
+
+  const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2C5F2D'} };
+  const headerFont = { bold:true, color:{argb:'FFFFFFFF'}, size:11 };
+  const borderThin = { top:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'}, bottom:{style:'thin'} };
+  const numFmt = '#,##0';
+  const pctFmt = '0.00%';
+
+  // 연도별 시트
+  years.forEach(y => {
+    const r = sahoeResults[y];
+    if (!r) return;
+    const rates = SAHOE_RATES[y];
+    if (!rates) return;
+
+    const ws = wb.addWorksheet(y + '년');
+    ws.columns = [
+      { width:18 }, { width:16 }, { width:18 }, { width:18 }, { width:18 }, { width:18 }, { width:12 }, { width:20 }
+    ];
+
+    // 제목
+    ws.addRow([y + '년 사회보험료 세액공제']).font = { bold:true, size:14 };
+    ws.addRow([]);
+
+    // 보험요율
+    const rateHdr = ws.addRow(['보험 구분', '요율']);
+    rateHdr.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; });
+    const addRateRow = (label, val) => {
+      const row = ws.addRow([label, val]);
+      row.getCell(2).numFmt = pctFmt;
+      row.eachCell(c => { c.border = borderThin; });
+    };
+    addRateRow('국민연금', rates.pension);
+    addRateRow('건강보험', rates.health);
+    addRateRow('장기요양', rates.health * rates.longterm);
+    addRateRow('고용보험', goyongRate);
+    addRateRow('산재보험', sanjaeRate);
+    const totalRateRow = ws.addRow(['합계', r.totalInsRate]);
+    totalRateRow.getCell(2).numFmt = pctFmt;
+    totalRateRow.eachCell(c => { c.border = borderThin; c.font = { bold:true }; });
+
+    ws.addRow([]);
+
+    // 계산 내역
+    const calcHdr = ws.addRow(['구분', '상시근로자수', '증가인원', '총급여', '평균급여', '1인당보험료', '공제율', '공제액']);
+    calcHdr.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
+
+    const startRow = calcHdr.number + 1;
+
+    // 청년 row
+    const yRow = ws.addRow([
+      '청년', r.youth.workers, r.youth.increase, r.youth.totalPay,
+      null, null, 1, null
+    ]);
+    // 평균급여 = 총급여 / 상시근로자수
+    yRow.getCell(5).value = { formula: `IF(B${startRow}>0,D${startRow}/B${startRow},0)` };
+    // 1인당보험료 = 평균급여 × 요율합계
+    yRow.getCell(6).value = { formula: `E${startRow}*B${startRow-ws.addRow.length}` };
+    // Actually use the total rate value directly for cleaner formula
+    yRow.getCell(6).value = { formula: `E${startRow}*${r.totalInsRate}` };
+    // 공제액 = 증가인원 × 1인당보험료 × 공제율
+    yRow.getCell(8).value = { formula: `FLOOR(C${startRow}*F${startRow}*G${startRow},1)` };
+    yRow.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
+    [4,5,6,8].forEach(i => { yRow.getCell(i).numFmt = numFmt; });
+    yRow.getCell(7).numFmt = '0%';
+
+    // 비청년 row
+    const nStartRow = startRow + 1;
+    const nRow = ws.addRow([
+      '비청년', r.nonYouth.workers, r.nonYouth.increase, r.nonYouth.totalPay,
+      null, null, 0.5, null
+    ]);
+    nRow.getCell(5).value = { formula: `IF(B${nStartRow}>0,D${nStartRow}/B${nStartRow},0)` };
+    nRow.getCell(6).value = { formula: `E${nStartRow}*${r.totalInsRate}` };
+    nRow.getCell(8).value = { formula: `FLOOR(C${nStartRow}*F${nStartRow}*G${nStartRow},1)` };
+    nRow.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
+    [4,5,6,8].forEach(i => { nRow.getCell(i).numFmt = numFmt; });
+    nRow.getCell(7).numFmt = '0%';
+
+    // 소계
+    const subRow = ws.addRow(['소계', '', '', '', '', '', '', null]);
+    subRow.getCell(8).value = { formula: `H${startRow}+H${nStartRow}` };
+    subRow.getCell(8).numFmt = numFmt;
+    subRow.eachCell(c => { c.border = borderThin; c.font = { bold:true }; c.alignment = {horizontal:'center'}; });
+  });
+
+  // 총괄표 시트
+  const allTaxYears = new Set();
+  years.forEach(y => { allTaxYears.add(y); allTaxYears.add(y + 1); });
+  const taxYears = [...allTaxYears].sort();
+
+  const ws = wb.addWorksheet('총괄표');
+  ws.columns = [{ width:14 }, ...taxYears.map(() => ({width:16})), { width:18 }];
+
+  const hdr = ws.addRow(['시작연도', ...taxYears.map(ty => ty + '년'), '합계']);
+  hdr.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
+
+  const colTotals = {};
+  taxYears.forEach(ty => { colTotals[ty] = 0; });
+  let grandTotal = 0;
+
+  years.forEach(y => {
+    const r = sahoeResults[y];
+    if (!r) return;
+    const credit = r.total;
+    const vals = [y + '년'];
+    taxYears.forEach(ty => {
+      if (ty === y || ty === y + 1) {
+        vals.push(credit);
+        colTotals[ty] += credit;
+      } else {
+        vals.push('');
+      }
+    });
+    let rowTotal = credit * 2; // 당기 + 다음해
+    if (!taxYears.includes(y) || !taxYears.includes(y+1)) {
+      rowTotal = credit; // edge case
+    }
+    vals.push(rowTotal);
+    grandTotal += rowTotal;
+    const row = ws.addRow(vals);
+    row.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
+    row.eachCell((c, idx) => { if (idx > 1) c.numFmt = numFmt; });
+  });
+
+  // 합계 행
+  const totalRow = ws.addRow(['합계', ...taxYears.map(ty => colTotals[ty]), grandTotal]);
+  totalRow.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
+  totalRow.eachCell((c, idx) => { if (idx > 1) c.numFmt = numFmt; });
+
+  wb.xlsx.writeBuffer().then(buf => {
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, '사회보험료_세액공제.xlsx');
+  });
+};
+
+})(); // end 사회보험료 IIFE
 </script>
 </body>
 </html>
