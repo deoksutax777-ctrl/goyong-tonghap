@@ -2720,11 +2720,8 @@ function syncYear(sourceStartY, y, suffix) {
     }
   }
 }
-function syncYearAll(sourceStartY, y) {
-  ['ym','yl','nm','nl'].forEach(s => syncYear(sourceStartY, y, s));
-}
-// expose for inline oninput
-window.calcSyncYear = function(startY, y) { syncYearAll(startY, y); };
+// expose for inline oninput — 개별 필드만 동기화
+window.calcSyncField = function(startY, y, suffix) { syncYear(startY, y, suffix); };
 window.calcUpdateTotPlaceholder = updateTotPlaceholder;
 
 function youthW(w) { return rp2(w.ym + w.yl); }
@@ -2937,11 +2934,12 @@ function buildInput() {
       h+=`<tr><td class="lbl"><strong>${y}년</strong></td>`;
       h+=`<td style="font-size:11px;color:var(--text-muted);">${role}</td>`;
       h+=`<td><input type="number" id="w${startY}-${y}-tot" step="0.01" value="" placeholder="자동" style="background:#f0f5ff;font-weight:600;" oninput="calcRecalcAll()"></td>`;
-      var oninp = `calcUpdateTotPlaceholder(${startY},${y});calcSyncYear(${startY},${y});calcRecalcAll()`;
-      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="${oninp}"></td>`;
-      if(hasN) h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="${oninp}"></td>`;
-      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="${oninp}"></td>`;
-      if(isS&&hasN) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="${oninp}"></td>`;
+      var base = `calcUpdateTotPlaceholder(${startY},${y});`;
+      var tail = `;calcRecalcAll()`;
+      h+=`<td><input type="number" id="w${startY}-${y}-ym" step="0.01" value="0" oninput="${base}calcSyncField(${startY},${y},'ym')${tail}"></td>`;
+      if(hasN) h+=`<td><input type="number" id="w${startY}-${y}-nm" step="0.01" value="0" oninput="${base}calcSyncField(${startY},${y},'nm')${tail}"></td>`;
+      if(isS) h+=`<td><input type="number" id="w${startY}-${y}-yl" step="0.01" value="0" oninput="${base}calcSyncField(${startY},${y},'yl')${tail}"></td>`;
+      if(isS&&hasN) h+=`<td><input type="number" id="w${startY}-${y}-nl" step="0.01" value="0" oninput="${base}calcSyncField(${startY},${y},'nl')${tail}"></td>`;
       h+='</tr>';
     });
 
