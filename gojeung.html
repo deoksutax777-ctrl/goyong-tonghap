@@ -4658,19 +4658,30 @@ window.sahoeExportExcel = function() {
     // 보험요율
     const rateHdr = ws.addRow(['보험 구분', '요율']);
     rateHdr.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; });
-    const addRateRow = (label, val) => {
+    const addRateRow = (label, val, fmt) => {
       const row = ws.addRow([label, val]);
-      row.getCell(2).numFmt = pctFmt;
+      row.getCell(2).numFmt = fmt || pctFmt;
       row.eachCell(c => { c.border = borderThin; });
+      return row.number;
     };
-    addRateRow('국민연금', rates.pension);
-    addRateRow('건강보험', rates.health);
-    addRateRow('장기요양', rates.health * rates.longterm);
-    addRateRow('고용보험', goyongRate);
-    addRateRow('산재보험', sanjaeRate);
-    const totalRateRow = ws.addRow(['합계', r.totalInsRate]);
+    const rPension = addRateRow('국민연금', rates.pension);
+    const rHealth = addRateRow('건강보험', rates.health);
+    const rLongRateRow = addRateRow('장기요양보험료율', rates.longterm);
+    // 장기요양 사용자부담 = 건강보험 × 장기요양율 (수식)
+    const rLong = ws.addRow(['장기요양(사용자)', null]);
+    rLong.getCell(2).value = { formula: `B${rHealth}*B${rLongRateRow}`, result: rates.health * rates.longterm };
+    rLong.getCell(2).numFmt = pctFmt;
+    rLong.eachCell(c => { c.border = borderThin; });
+    const rLongRow = rLong.number;
+    const rGoyong = addRateRow('고용보험', goyongRate);
+    const rSanjae = addRateRow('산재보험', sanjaeRate);
+    // 합계 = SUM 수식
+    const totalRateRow = ws.addRow(['합계', null]);
+    const sumF = `B${rPension}+B${rHealth}+B${rLongRow}+B${rGoyong}+B${rSanjae}`;
+    totalRateRow.getCell(2).value = { formula: sumF, result: r.totalInsRate };
     totalRateRow.getCell(2).numFmt = pctFmt;
     totalRateRow.eachCell(c => { c.border = borderThin; c.font = { bold:true }; });
+    const totalRateCell = 'B' + totalRateRow.number;
 
     ws.addRow([]);
 
@@ -4686,13 +4697,11 @@ window.sahoeExportExcel = function() {
       null, null, 1, null
     ]);
     // 평균급여 = 총급여 / 상시근로자수
-    yRow.getCell(5).value = { formula: `IF(B${startRow}>0,D${startRow}/B${startRow},0)` };
-    // 1인당보험료 = 평균급여 × 요율합계
-    yRow.getCell(6).value = { formula: `E${startRow}*B${startRow-ws.addRow.length}` };
-    // Actually use the total rate value directly for cleaner formula
-    yRow.getCell(6).value = { formula: `E${startRow}*${r.totalInsRate}` };
+    yRow.getCell(5).value = { formula: `IF(B${startRow}>0,D${startRow}/B${startRow},0)`, result: r.youth.avgPay };
+    // 1인당보험료 = 평균급여 × 요율합계 셀 참조
+    yRow.getCell(6).value = { formula: `E${startRow}*${totalRateCell}`, result: r.youth.perPerson };
     // 공제액 = 증가인원 × 1인당보험료 × 공제율
-    yRow.getCell(8).value = { formula: `FLOOR(C${startRow}*F${startRow}*G${startRow},1)` };
+    yRow.getCell(8).value = { formula: `INT(C${startRow}*F${startRow}*G${startRow})`, result: r.youth.credit };
     yRow.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
     [4,5,6,8].forEach(i => { yRow.getCell(i).numFmt = numFmt; });
     yRow.getCell(7).numFmt = '0%';
@@ -4703,63 +4712,83 @@ window.sahoeExportExcel = function() {
       '비청년', r.nonYouth.workers, r.nonYouth.increase, r.nonYouth.totalPay,
       null, null, 0.5, null
     ]);
-    nRow.getCell(5).value = { formula: `IF(B${nStartRow}>0,D${nStartRow}/B${nStartRow},0)` };
-    nRow.getCell(6).value = { formula: `E${nStartRow}*${r.totalInsRate}` };
-    nRow.getCell(8).value = { formula: `FLOOR(C${nStartRow}*F${nStartRow}*G${nStartRow},1)` };
+    nRow.getCell(5).value = { formula: `IF(B${nStartRow}>0,D${nStartRow}/B${nStartRow},0)`, result: r.nonYouth.avgPay };
+    nRow.getCell(6).value = { formula: `E${nStartRow}*${totalRateCell}`, result: r.nonYouth.perPerson };
+    nRow.getCell(8).value = { formula: `INT(C${nStartRow}*F${nStartRow}*G${nStartRow})`, result: r.nonYouth.credit };
     nRow.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
     [4,5,6,8].forEach(i => { nRow.getCell(i).numFmt = numFmt; });
     nRow.getCell(7).numFmt = '0%';
 
-    // 소계
+    // 소계 = SUM
     const subRow = ws.addRow(['소계', '', '', '', '', '', '', null]);
-    subRow.getCell(8).value = { formula: `H${startRow}+H${nStartRow}` };
+    subRow.getCell(8).value = { formula: `H${startRow}+H${nStartRow}`, result: r.total };
     subRow.getCell(8).numFmt = numFmt;
     subRow.eachCell(c => { c.border = borderThin; c.font = { bold:true }; c.alignment = {horizontal:'center'}; });
+    // 소계 셀 위치 저장 (총괄표에서 참조)
+    ws.__subTotalRow = subRow.number;
   });
 
-  // 총괄표 시트
+  // 총괄표 시트 — 연도별 시트 소계 셀 참조
   const allTaxYears = new Set();
   years.forEach(y => { allTaxYears.add(y); allTaxYears.add(y + 1); });
   const taxYears = [...allTaxYears].sort();
 
-  const ws = wb.addWorksheet('총괄표');
-  ws.columns = [{ width:14 }, ...taxYears.map(() => ({width:16})), { width:18 }];
-
-  const hdr = ws.addRow(['시작연도', ...taxYears.map(ty => ty + '년'), '합계']);
-  hdr.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
-
-  const colTotals = {};
-  taxYears.forEach(ty => { colTotals[ty] = 0; });
-  let grandTotal = 0;
-
+  // 연도별 시트의 소계 행 번호 수집
+  const sheetSubRows = {};
   years.forEach(y => {
+    const s = wb.getWorksheet(y + '년');
+    if (s && s.__subTotalRow) sheetSubRows[y] = s.__subTotalRow;
+  });
+
+  const ws2 = wb.addWorksheet('총괄표');
+  ws2.columns = [{ width:14 }, ...taxYears.map(() => ({width:16})), { width:18 }];
+
+  const hdr2 = ws2.addRow(['시작연도', ...taxYears.map(ty => ty + '년'), '합계']);
+  hdr2.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
+
+  const dataStartRow = hdr2.number + 1;
+
+  years.forEach((y, yi) => {
     const r = sahoeResults[y];
     if (!r) return;
-    const credit = r.total;
-    const vals = [y + '년'];
-    taxYears.forEach(ty => {
-      if (ty === y || ty === y + 1) {
-        vals.push(credit);
-        colTotals[ty] += credit;
+    const sn = "'" + y + "년'"; // 시트명 참조
+    const subR = sheetSubRows[y];
+    const subRef = subR ? `${sn}!H${subR}` : null;
+
+    const row = ws2.addRow([y + '년']);
+    taxYears.forEach((ty, ti) => {
+      const ci = ti + 2; // 1-based, 첫번째=시작연도
+      if ((ty === y || ty === y + 1) && subRef) {
+        // 산출 시트 소계 셀 참조
+        row.getCell(ci).value = { formula: subRef, result: r.total };
+      } else if (ty === y || ty === y + 1) {
+        row.getCell(ci).value = r.total;
       } else {
-        vals.push('');
+        row.getCell(ci).value = '';
       }
     });
-    let rowTotal = credit * 2; // 당기 + 다음해
-    if (!taxYears.includes(y) || !taxYears.includes(y+1)) {
-      rowTotal = credit; // edge case
+    // 행 합계 = SUM
+    const lastDataCol = taxYears.length + 1;
+    const sumCols = [];
+    taxYears.forEach((ty, ti) => {
+      if (ty === y || ty === y + 1) sumCols.push(String.fromCharCode(66 + ti) + row.number);
+    });
+    if (sumCols.length > 0) {
+      row.getCell(lastDataCol + 1).value = { formula: sumCols.join('+'), result: r.total * Math.min(sumCols.length, 2) };
     }
-    vals.push(rowTotal);
-    grandTotal += rowTotal;
-    const row = ws.addRow(vals);
     row.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
     row.eachCell((c, idx) => { if (idx > 1) c.numFmt = numFmt; });
   });
 
-  // 합계 행
-  const totalRow = ws.addRow(['합계', ...taxYears.map(ty => colTotals[ty]), grandTotal]);
-  totalRow.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
-  totalRow.eachCell((c, idx) => { if (idx > 1) c.numFmt = numFmt; });
+  // 합계 행 = SUM 수식
+  const dataEndRow = ws2.lastRow.number;
+  const totalRow2 = ws2.addRow(['합계']);
+  for (let ci = 2; ci <= taxYears.length + 2; ci++) {
+    const col = String.fromCharCode(63 + ci); // A=65, B=66, ...
+    totalRow2.getCell(ci).value = { formula: `SUM(${col}${dataStartRow}:${col}${dataEndRow})`, result: 0 };
+    totalRow2.getCell(ci).numFmt = numFmt;
+  }
+  totalRow2.eachCell(c => { c.fill = headerFill; c.font = headerFont; c.border = borderThin; c.alignment = {horizontal:'center'}; });
 
   wb.xlsx.writeBuffer().then(buf => {
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
