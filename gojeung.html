@@ -3721,14 +3721,16 @@ window.calcExportExcel = async function() {
           const lC='(D'+wD+'+F'+wD+')-(D'+wP+'+F'+wP+')'; // 비수도권 증감
           const tC='G'+wD+'-G'+wP; // 전체 증감
           // 단가순 배정: D(yl,1200) → C(ym,1100) → F(nl,770) → E(nm,700)
+          // INT(x*100)/100 = truncW (부동소수점 절사, JS와 동일)
+          const tw = f => 'INT('+f+'*100)/100';
           // D(yl): MIN(개별, 비수도권한도, 전체한도)
-          const ylF='MIN(MAX(0,D'+wD+'-D'+wP+'),MAX(0,'+lC+'),MAX(0,'+tC+'))';
+          const ylF=tw('MIN(MAX(0,D'+wD+'-D'+wP+'),MAX(0,'+lC+'),MAX(0,'+tC+'))');
           // C(ym): MIN(개별, 수도권한도, 전체잔여=전체-yl)
-          const ymF='MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,'+mC+'),MAX(0,'+tC+'-D'+r2+'))';
+          const ymF=tw('MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,'+mC+'),MAX(0,'+tC+'-D'+r2+'))');
           // F(nl): MIN(개별, 비수도권잔여=비수도권-yl, 전체잔여=전체-yl-ym)
-          const nlF='MIN(MAX(0,F'+wD+'-F'+wP+'),MAX(0,'+lC+'-D'+r2+'),MAX(0,'+tC+'-D'+r2+'-C'+r2+'))';
+          const nlF=tw('MIN(MAX(0,F'+wD+'-F'+wP+'),MAX(0,'+lC+'-D'+r2+'),MAX(0,'+tC+'-D'+r2+'-C'+r2+'))');
           // E(nm): MIN(개별, 수도권잔여=수도권-ym, 전체잔여=전체-yl-ym-nl)
-          const nmF='MIN(MAX(0,E'+wD+'-E'+wP+'),MAX(0,'+mC+'-C'+r2+'),MAX(0,'+tC+'-D'+r2+'-C'+r2+'-F'+r2+'))';
+          const nmF=tw('MIN(MAX(0,E'+wD+'-E'+wP+'),MAX(0,'+mC+'-C'+r2+'),MAX(0,'+tC+'-D'+r2+'-C'+r2+'-F'+r2+'))');
           fc(ws,r2,ci++,ymF,danggi.inc.ym,nf2);
           fc(ws,r2,ci++,ylF,danggi.inc.yl,nf2);
           fc(ws,r2,ci++,nmF,danggi.inc.nm,nf2);
@@ -3763,17 +3765,17 @@ window.calcExportExcel = async function() {
             fc(ws,r2,ci++,'C'+danggiCalcRow+'*MIN(1,IF(C'+danggiCalcRow+'=0,0,MAX(0,D'+wC+'-D'+wP+')/C'+danggiCalcRow+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         } else {
-          // 정상 유지: MIN(당기증감, MAX(0, 해당연도-전기))
+          // 정상 유지: INT(MIN(당기증감, MAX(0, 해당연도-전기))*100)/100
           if(isS){
-            fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'MIN(E'+danggiCalcRow+',MAX(0,E'+wC+'-E'+wP+'))',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'MIN(F'+danggiCalcRow+',MAX(0,F'+wC+'-F'+wP+'))',item.addtl.inc.nl,nf2);
+            fc(ws,r2,ci++,'INT(MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))*100)/100',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'INT(MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))*100)/100',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'INT(MIN(E'+danggiCalcRow+',MAX(0,E'+wC+'-E'+wP+'))*100)/100',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'INT(MIN(F'+danggiCalcRow+',MAX(0,F'+wC+'-F'+wP+'))*100)/100',item.addtl.inc.nl,nf2);
           } else if(hasN){
-            fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+            fc(ws,r2,ci++,'INT(MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
-            fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         }
       }
