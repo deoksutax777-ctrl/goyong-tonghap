@@ -3713,32 +3713,68 @@ window.calcExportExcel = async function() {
             item.role==='당기'?rp2(danggi.inc.ym+danggi.inc.yl):rp2((item.addtl?item.addtl.inc.ym:0)+(item.addtl?item.addtl.inc.yl:0)), nf2);
         }
       } else if(item.role==='당기'){
-        // 당기 증감 = 당기 상시근로자 - 전기 상시근로자 (수식)
+        // 당기 증감 수식: ①개별증감 ②지역한도(청년우선) ③전체한도(단가순 배정: yl>ym>nl>nm)
         const wD=wRowMap['당기'], wP=wRowMap['전기'];
         if(isS){
-          fc(ws,r2,ci++,'C'+wD+'-C'+wP,danggi.inc.ym,nf2);
-          fc(ws,r2,ci++,'D'+wD+'-D'+wP,danggi.inc.yl,nf2);
-          fc(ws,r2,ci++,'E'+wD+'-E'+wP,danggi.inc.nm,nf2);
-          fc(ws,r2,ci++,'F'+wD+'-F'+wP,danggi.inc.nl,nf2);
+          // 지역합계 참조
+          const mC='(C'+wD+'+E'+wD+')-(C'+wP+'+E'+wP+')'; // 수도권 증감
+          const lC='(D'+wD+'+F'+wD+')-(D'+wP+'+F'+wP+')'; // 비수도권 증감
+          const tC='G'+wD+'-G'+wP; // 전체 증감
+          // 단가순 배정: D(yl,1200) → C(ym,1100) → F(nl,770) → E(nm,700)
+          // D(yl): MIN(개별, 비수도권한도, 전체한도)
+          const ylF='MIN(MAX(0,D'+wD+'-D'+wP+'),MAX(0,'+lC+'),MAX(0,'+tC+'))';
+          // C(ym): MIN(개별, 수도권한도, 전체잔여=전체-yl)
+          const ymF='MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,'+mC+'),MAX(0,'+tC+'-D'+r2+'))';
+          // F(nl): MIN(개별, 비수도권잔여=비수도권-yl, 전체잔여=전체-yl-ym)
+          const nlF='MIN(MAX(0,F'+wD+'-F'+wP+'),MAX(0,'+lC+'-D'+r2+'),MAX(0,'+tC+'-D'+r2+'-C'+r2+'))';
+          // E(nm): MIN(개별, 수도권잔여=수도권-ym, 전체잔여=전체-yl-ym-nl)
+          const nmF='MIN(MAX(0,E'+wD+'-E'+wP+'),MAX(0,'+mC+'-C'+r2+'),MAX(0,'+tC+'-D'+r2+'-C'+r2+'-F'+r2+'))';
+          fc(ws,r2,ci++,ymF,danggi.inc.ym,nf2);
+          fc(ws,r2,ci++,ylF,danggi.inc.yl,nf2);
+          fc(ws,r2,ci++,nmF,danggi.inc.nm,nf2);
+          fc(ws,r2,ci++,nlF,danggi.inc.nl,nf2);
         } else if(hasN){
-          fc(ws,r2,ci++,'C'+wD+'-C'+wP,rp2(danggi.inc.ym+danggi.inc.yl),nf2);
-          fc(ws,r2,ci++,'D'+wD+'-D'+wP,rp2(danggi.inc.nm+danggi.inc.nl),nf2);
+          const tC='E'+wD+'-E'+wP;
+          fc(ws,r2,ci++,'MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,'+tC+'))',rp2(danggi.inc.ym+danggi.inc.yl),nf2);
+          fc(ws,r2,ci++,'MIN(MAX(0,D'+wD+'-D'+wP+'),MAX(0,'+tC+'-C'+r2+'))',rp2(danggi.inc.nm+danggi.inc.nl),nf2);
         } else {
-          fc(ws,r2,ci++,'C'+wD+'-C'+wP,rp2(danggi.inc.ym+danggi.inc.yl),nf2);
+          fc(ws,r2,ci++,'MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,D'+wD+'-D'+wP+'))',rp2(danggi.inc.ym+danggi.inc.yl),nf2);
         }
       } else if(item.addtl){
-        // 추가공제 증감 = MIN(당기증감, MAX(0, 해당연도-전기)) (유지 인원)
+        // 추가공제: youthDec 여부에 따라 수식 다름
         const wC=wRowMap[item.role], wP=wRowMap['전기'];
-        if(isS){
-          fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',item.addtl.inc.ym,nf2);
-          fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',item.addtl.inc.yl,nf2);
-          fc(ws,r2,ci++,'MIN(E'+danggiCalcRow+',MAX(0,E'+wC+'-E'+wP+'))',item.addtl.inc.nm,nf2);
-          fc(ws,r2,ci++,'MIN(F'+danggiCalcRow+',MAX(0,F'+wC+'-F'+wP+'))',item.addtl.inc.nl,nf2);
-        } else if(hasN){
-          fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-          fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+        if(yDec){
+          // 청년감소 시: 당기inc × MIN(1, 전체유지/당기총증가) (비례 스케일)
+          if(isS){
+            const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+'+E'+danggiCalcRow+'+F'+danggiCalcRow+')';
+            const kept='MAX(0,G'+wC+'-G'+wP+')';
+            const scl='MIN(1,IF('+dSum+'=0,0,'+kept+'/'+dSum+'))';
+            fc(ws,r2,ci++,'C'+danggiCalcRow+'*'+scl,item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'D'+danggiCalcRow+'*'+scl,item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'E'+danggiCalcRow+'*'+scl,item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'F'+danggiCalcRow+'*'+scl,item.addtl.inc.nl,nf2);
+          } else if(hasN){
+            const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+')';
+            const kept='MAX(0,E'+wC+'-E'+wP+')';
+            const scl='MIN(1,IF('+dSum+'=0,0,'+kept+'/'+dSum+'))';
+            fc(ws,r2,ci++,'C'+danggiCalcRow+'*'+scl,rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'D'+danggiCalcRow+'*'+scl,rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+          } else {
+            fc(ws,r2,ci++,'C'+danggiCalcRow+'*MIN(1,IF(C'+danggiCalcRow+'=0,0,MAX(0,D'+wC+'-D'+wP+')/C'+danggiCalcRow+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+          }
         } else {
-          fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+          // 정상 유지: MIN(당기증감, MAX(0, 해당연도-전기))
+          if(isS){
+            fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'MIN(E'+danggiCalcRow+',MAX(0,E'+wC+'-E'+wP+'))',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'MIN(F'+danggiCalcRow+',MAX(0,F'+wC+'-F'+wP+'))',item.addtl.inc.nl,nf2);
+          } else if(hasN){
+            fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+          } else {
+            fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+          }
         }
       }
 
