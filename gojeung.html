@@ -3713,13 +3713,33 @@ window.calcExportExcel = async function() {
             item.role==='당기'?rp2(danggi.inc.ym+danggi.inc.yl):rp2((item.addtl?item.addtl.inc.ym:0)+(item.addtl?item.addtl.inc.yl:0)), nf2);
         }
       } else if(item.role==='당기'){
-        if(isS){dc(ws,r2,ci++,danggi.inc.ym,nf2);dc(ws,r2,ci++,danggi.inc.yl,nf2);dc(ws,r2,ci++,danggi.inc.nm,nf2);dc(ws,r2,ci++,danggi.inc.nl,nf2);}
-        else if(hasN){dc(ws,r2,ci++,rp2(danggi.inc.ym+danggi.inc.yl),nf2);dc(ws,r2,ci++,rp2(danggi.inc.nm+danggi.inc.nl),nf2);}
-        else{dc(ws,r2,ci++,rp2(danggi.inc.ym+danggi.inc.yl),nf2);}
+        // 당기 증감 = 당기 상시근로자 - 전기 상시근로자 (수식)
+        const wD=wRowMap['당기'], wP=wRowMap['전기'];
+        if(isS){
+          fc(ws,r2,ci++,'C'+wD+'-C'+wP,danggi.inc.ym,nf2);
+          fc(ws,r2,ci++,'D'+wD+'-D'+wP,danggi.inc.yl,nf2);
+          fc(ws,r2,ci++,'E'+wD+'-E'+wP,danggi.inc.nm,nf2);
+          fc(ws,r2,ci++,'F'+wD+'-F'+wP,danggi.inc.nl,nf2);
+        } else if(hasN){
+          fc(ws,r2,ci++,'C'+wD+'-C'+wP,rp2(danggi.inc.ym+danggi.inc.yl),nf2);
+          fc(ws,r2,ci++,'D'+wD+'-D'+wP,rp2(danggi.inc.nm+danggi.inc.nl),nf2);
+        } else {
+          fc(ws,r2,ci++,'C'+wD+'-C'+wP,rp2(danggi.inc.ym+danggi.inc.yl),nf2);
+        }
       } else if(item.addtl){
-        if(isS){dc(ws,r2,ci++,item.addtl.inc.ym,nf2);dc(ws,r2,ci++,item.addtl.inc.yl,nf2);dc(ws,r2,ci++,item.addtl.inc.nm,nf2);dc(ws,r2,ci++,item.addtl.inc.nl,nf2);}
-        else if(hasN){dc(ws,r2,ci++,rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);dc(ws,r2,ci++,rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);}
-        else{dc(ws,r2,ci++,rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);}
+        // 추가공제 증감 = MIN(당기증감, MAX(0, 해당연도-전기)) (유지 인원)
+        const wC=wRowMap[item.role], wP=wRowMap['전기'];
+        if(isS){
+          fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',item.addtl.inc.ym,nf2);
+          fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',item.addtl.inc.yl,nf2);
+          fc(ws,r2,ci++,'MIN(E'+danggiCalcRow+',MAX(0,E'+wC+'-E'+wP+'))',item.addtl.inc.nm,nf2);
+          fc(ws,r2,ci++,'MIN(F'+danggiCalcRow+',MAX(0,F'+wC+'-F'+wP+'))',item.addtl.inc.nl,nf2);
+        } else if(hasN){
+          fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+          fc(ws,r2,ci++,'MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+'))',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+        } else {
+          fc(ws,r2,ci++,'MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+'))',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+        }
       }
 
       let amtFormula;
