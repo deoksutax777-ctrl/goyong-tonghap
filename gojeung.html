@@ -2753,8 +2753,8 @@ let axisFlipped = true;
 function fmt(n) { return Math.floor(n).toLocaleString('ko-KR'); }
 function fmtD(n) { return Number.isInteger(n) ? n.toString() : n.toFixed(2); }
 function rp2(n) { return Math.round(n * 100) / 100; }
-function truncW(n) { return Math.floor(rp2(n) * 100) / 100; }
-function truncAmt(n) { return Math.floor(n); }
+function truncW(n) { return Math.floor(rp2(n) * 100 + 1e-9) / 100; }  // 부동소수점 보정
+function truncAmt(n) { return Math.floor(n + 1e-6); }  // 부동소수점 보정
 function getCorp() { return document.getElementById('calc-corp-type').value; }
 function getFrom() { return +document.getElementById('year-from').value; }
 function getTo() { return +document.getElementById('year-to').value; }
