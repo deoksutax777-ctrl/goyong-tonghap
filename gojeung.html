@@ -14,18 +14,18 @@
     --border-strong: #8a9bb0;
     --text: #1a2332;
     --text-muted: #5a6a7e;
-    --accent: #2c5f2d;
-    --accent-light: #e8f4e8;
-    --accent2: #0e7c61;
-    --accent2-light: #e6f4f0;
+    --accent: #00338D;
+    --accent-light: #e8eef8;
+    --accent2: #C5A44E;
+    --accent2-light: #faf6eb;
     --warn: #c0392b;
     --warn-light: #fdf0ee;
     --orange: #e67e22;
     --orange-light: #fef6e8;
-    --header-bg: #e4eee4;
-    --row-hover: #f2f8f2;
+    --header-bg: #e8eef8;
+    --row-hover: #f0f4fa;
     --excluded-bg: #fdf5f5;
-    --youth-bg: #f0f8f4;
+    --youth-bg: #f0f4fa;
     --font: 'Noto Sans KR', sans-serif;
     --mono: 'IBM Plex Mono', monospace;
   }
@@ -51,7 +51,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 12px rgba(44,95,45,.25);
+    box-shadow: 0 2px 12px rgba(0,51,141,.25);
   }
   .app-header h1 { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
   .app-header .sub { font-size: 11px; opacity: .75; margin-top: 2px; }
@@ -64,13 +64,13 @@
     background: transparent; color: rgba(255,255,255,.85); border: 2px solid rgba(255,255,255,.4);
   }
   .nav-btns button.nav-link:hover { background: rgba(255,255,255,.15); }
-  .nav-btns button.nav-link.active { background: #fff; color: #2c5f2d; border: 2px solid #fff; }
+  .nav-btns button.nav-link.active { background: #fff; color: #00338D; border: 2px solid #fff; }
 
   /* 제도 이동 버튼 */
   .switch-btn {
     padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
     text-decoration: none; transition: all .2s; cursor: pointer;
-    background: #fff; color: #1a4fa8; border: 2px solid #fff;
+    background: #fff; color: #00338D; border: 2px solid #fff;
     margin-left: 8px; letter-spacing: .3px;
     box-shadow: 0 1px 4px rgba(0,0,0,.15);
   }
@@ -84,30 +84,30 @@
   }
   .theme-btn:hover { background: rgba(255,255,255,.25); }
 
-  /* 연노란 테마 */
+  /* 골드 테마 */
   body.theme-warm {
-    --bg: #fffde7; --surface: #fffff0; --surface2: #fff9c4;
-    --border: #e0d54a; --text: #33300a; --text-muted: #7a7530;
-    --accent: #f9a825; --accent-light: #fff8e1; --accent2: #f57f17; --accent2-light: #fff3e0;
+    --bg: #faf6eb; --surface: #fffff8; --surface2: #f5efd8;
+    --border: #C5A44E; --text: #2a2510; --text-muted: #7a6d3a;
+    --accent: #C5A44E; --accent-light: #faf6eb; --accent2: #00338D; --accent2-light: #e8eef8;
     --warn: #d32f2f; --warn-light: #ffebee; --orange: #ef6c00; --orange-light: #fff3e0;
   }
-  body.theme-warm .app-header { background: #f9a825; box-shadow: 0 2px 12px rgba(249,168,37,.35); color: #33300a; }
-  body.theme-warm .app-header .sub { color: #5a5520; }
-  body.theme-warm .main-tabs { background: #f57f17; }
+  body.theme-warm .app-header { background: #C5A44E; box-shadow: 0 2px 12px rgba(197,164,78,.35); color: #2a2510; }
+  body.theme-warm .app-header .sub { color: #5a5020; }
+  body.theme-warm .main-tabs { background: #b0903a; }
   body.theme-warm .main-tab-btn { color: rgba(255,255,255,.75); }
-  body.theme-warm .main-tab-btn.active { color: #f9a825; border-bottom-color: #f9a825; }
-  body.theme-warm .switch-btn { color: #1a4fa8; background: #fff; }
-  body.theme-warm .theme-btn { color: #33300a; border-color: rgba(51,48,10,.3); }
-  body.theme-warm .panel-header { color: #e65100; }
-  body.theme-warm .tl-title-badge { background: #f9a825; color: #33300a; }
-  body.theme-warm .tl-card.c-danggi { border-color: #f9a825; background: linear-gradient(135deg, #fff8e1, #fffde7); }
-  body.theme-warm .tl-card.c-addtl { border-color: #f57f17; background: linear-gradient(135deg, #fff3e0, #fffff0); }
-  body.theme-warm .progress-fill { background: linear-gradient(90deg, #f9a825, #f57f17); }
-  body.theme-warm .matrix th { background: #f9a825; color: #33300a; border-color: #f9a825; }
-  body.theme-warm .matrix tr.row-total td { background: #f9a825; color: #33300a; border-color: #f9a825; }
-  body.theme-warm .matrix tr.row-total td.lbl { background: #f9a825; color: #33300a; }
-  body.theme-warm .matrix td.col-total { background: #fff8e1; color: #e65100; }
-  body.theme-warm .highlight-box { background: #f9a825; color: #33300a; }
+  body.theme-warm .main-tab-btn.active { color: #C5A44E; border-bottom-color: #C5A44E; }
+  body.theme-warm .switch-btn { color: #00338D; background: #fff; }
+  body.theme-warm .theme-btn { color: #2a2510; border-color: rgba(42,37,16,.3); }
+  body.theme-warm .panel-header { color: #00338D; }
+  body.theme-warm .tl-title-badge { background: #C5A44E; color: #2a2510; }
+  body.theme-warm .tl-card.c-danggi { border-color: #C5A44E; background: linear-gradient(135deg, #faf6eb, #fffff8); }
+  body.theme-warm .tl-card.c-addtl { border-color: #00338D; background: linear-gradient(135deg, #e8eef8, #f0f4fa); }
+  body.theme-warm .progress-fill { background: linear-gradient(90deg, #C5A44E, #00338D); }
+  body.theme-warm .matrix th { background: #C5A44E; color: #2a2510; border-color: #C5A44E; }
+  body.theme-warm .matrix tr.row-total td { background: #C5A44E; color: #2a2510; border-color: #C5A44E; }
+  body.theme-warm .matrix tr.row-total td.lbl { background: #C5A44E; color: #2a2510; }
+  body.theme-warm .matrix td.col-total { background: #faf6eb; color: #00338D; }
+  body.theme-warm .highlight-box { background: #C5A44E; color: #2a2510; }
 
   /* ── MAIN TAB BAR ──────────────────────── */
   .main-tabs {
@@ -338,12 +338,12 @@
     font-family: var(--mono); transition: all .15s; white-space:nowrap;
     user-select:none;
   }
-  .toggle-btn.state-auto-y  { background:#e6f4f0; color:#0e7c61; border-color:#9dd3c2; }
+  .toggle-btn.state-auto-y  { background:#e6f4f0; color:#C5A44E; border-color:#9dd3c2; }
   .toggle-btn.state-auto-n  { background:#fdf5f5; color:#aaa;    border-color:#f0c0b8; }
   .toggle-btn.state-force-y { background:#fff3cc; color:#b86a00; border-color:#f0c060; }
   .toggle-btn.state-force-n { background:#f0e8ff; color:#7040c0; border-color:#c0a0f0; }
   .toggle-btn .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-  .toggle-btn.state-auto-y  .dot { background:#0e7c61; }
+  .toggle-btn.state-auto-y  .dot { background:#C5A44E; }
   .toggle-btn.state-auto-n  .dot { background:#ccc; }
   .toggle-btn.state-force-y .dot { background:#f0a000; }
   .toggle-btn.state-force-n .dot { background:#9060e0; }
@@ -795,7 +795,7 @@
       <span>&#128200; 연도별 세액공제 종합</span>
       <div style="display:flex;gap:6px;">
         <button id="axis-toggle" onclick="calcToggleAxis()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:5px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;">축 전환</button>
-        <button onclick="calcExportExcel()" style="background:#0e7c61;color:#fff;border:none;border-radius:5px;padding:4px 14px;font-size:11px;font-weight:600;cursor:pointer;">&#128196; 엑셀 다운로드</button>
+        <button onclick="calcExportExcel()" style="background:#C5A44E;color:#fff;border:none;border-radius:5px;padding:4px 14px;font-size:11px;font-weight:600;cursor:pointer;">&#128196; 엑셀 다운로드</button>
       </div>
     </div>
     <div class="panel-body" id="summary-area"></div>
@@ -2361,7 +2361,7 @@ window.specDownloadExcel = async function() {
           if (c === 3) return;
           if (c === 10 || c === 11) return;
           var color = null;
-          if (v === 'Y') color = 'FF0E7C61';
+          if (v === 'Y') color = 'FF00338D';
           if (v === 'N' && ynCols.indexOf(c)>=0) color = 'FFCCCCCC';
           if (emp.reason && c === 4) color = 'FFC0392B';
           SC(r, c, v, {bg:bg, bold:v==='Y', color:color, halign:c===2?'left':'center'});
@@ -2381,7 +2381,7 @@ window.specDownloadExcel = async function() {
         cellC.fill = {type:'pattern', pattern:'solid', fgColor:{argb:bg}};
         cellC.alignment = {horizontal:'center', vertical:'middle'};
         cellC.font = {name:'Noto Sans KR', size:9, bold:true,
-          color:{argb: emp.regular==='Y' ? 'FF0E7C61' : 'FFCCCCCC'}};
+          color:{argb: emp.regular==='Y' ? 'FF00338D' : 'FFCCCCCC'}};
 
         var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
 
@@ -2506,7 +2506,7 @@ window.specDownloadSimple = async function() {
     const WHITE = 'FFFFFFFF';
     const EXCL  = 'FFFFF2F2';
     const YOUTH = 'FFF0FFF5';
-    const BLUE  = 'FF1a4fa8';
+    const BLUE  = 'FF00338D';
     const GREEN = 'FFF2F2F2';
 
     function makeSheet(ws, employees, sheetYear, label) {
@@ -2643,16 +2643,16 @@ window.specDownloadSimple = async function() {
         SC(r,2, emp.name, {bg:bg, halign:'left'});
         FC(r,3, 'IF(D'+r+'="","Y","N")', null);
         ws.getCell(r,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
-        ws.getCell(r,3).font = {name:'맑은 고딕',size:9,bold:true, color:{argb: emp.regular==='Y'?'FF0E7C61':'FFCCCCCC'}};
+        ws.getCell(r,3).font = {name:'맑은 고딕',size:9,bold:true, color:{argb: emp.regular==='Y'?'FF00338D':'FFCCCCCC'}};
         SC(r,4, emp.reason||'', {bg:bg, color: emp.reason?'FFC0392B':null});
         SC(r,5, emp.shortTimeType||'', {bg:bg});
-        SC(r,6, emp.domestic, {bg:bg, bold:emp.domestic==='Y', color:emp.domestic==='Y'?'FF0E7C61':'FFCCCCCC'});
-        SC(r,7, emp.metro, {bg:bg, bold:emp.metro==='Y', color:emp.metro==='Y'?'FF0E7C61':'FFCCCCCC'});
+        SC(r,6, emp.domestic, {bg:bg, bold:emp.domestic==='Y', color:emp.domestic==='Y'?'FF00338D':'FFCCCCCC'});
+        SC(r,7, emp.metro, {bg:bg, bold:emp.metro==='Y', color:emp.metro==='Y'?'FF00338D':'FFCCCCCC'});
         SC(r,8, emp.hireStr||'', {bg:bg});
         SC(r,9, emp.workPeriod||'', {bg:bg});
-        SC(r,12, emp.isYouthYear, {bg:bg, bold:emp.isYouthYear==='Y', color:emp.isYouthYear==='Y'?'FF0E7C61':'FFCCCCCC'});
-        SC(r,13, emp.isDisabled, {bg:bg, bold:emp.isDisabled==='Y', color:emp.isDisabled==='Y'?'FF0E7C61':'FFCCCCCC'});
-        SC(r,14, emp.elderlyAtHire?'Y':'N', {bg:bg, bold:emp.elderlyAtHire, color:emp.elderlyAtHire?'FF0E7C61':'FFCCCCCC'});
+        SC(r,12, emp.isYouthYear, {bg:bg, bold:emp.isYouthYear==='Y', color:emp.isYouthYear==='Y'?'FF00338D':'FFCCCCCC'});
+        SC(r,13, emp.isDisabled, {bg:bg, bold:emp.isDisabled==='Y', color:emp.isDisabled==='Y'?'FF00338D':'FFCCCCCC'});
+        SC(r,14, emp.elderlyAtHire?'Y':'N', {bg:bg, bold:emp.elderlyAtHire, color:emp.elderlyAtHire?'FF00338D':'FFCCCCCC'});
 
         var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
         var age30F = '(LEFT(A'+r+',4)+30)*10000+VALUE(RIGHT(A'+r+',4))';
@@ -3392,7 +3392,7 @@ window.calcExportExcel = async function() {
   const L = i => String.fromCharCode(65+i);
 
   const C = {
-    dark:'FF0D1B2A', pri:'FF1a4fa8', mid:'FF1a4fa8',
+    dark:'FF001A4D', pri:'FF00338D', mid:'FF00338D',
     light:'FFF2F2F2', pale:'FFF8F8F8',
     white:'FFFFFFFF', black:'FF1A1A2E', muted:'FF556688', red:'FFC0392B',
   };
@@ -3430,7 +3430,7 @@ window.calcExportExcel = async function() {
     const sWHITE = 'FFFFFFFF';
     const sEXCL  = 'FFFFF2F2';
     const sYOUTH = 'FFF0FFF5';
-    const sBLUE  = 'FF1a4fa8';
+    const sBLUE  = 'FF00338D';
     const sGREEN = 'FFF2F2F2';
 
     function buildSimpleSheet(ws, employees, sheetYear, label) {
@@ -3547,16 +3547,16 @@ window.calcExportExcel = async function() {
         sSC(r,2, emp.name, {bg:bg, halign:'left'});
         sFC(r,3, 'IF(D'+r+'="","Y","N")', null);
         ws.getCell(r,3).fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
-        ws.getCell(r,3).font = {name:'맑은 고딕',size:9,bold:true, color:{argb: emp.regular==='Y'?'FF0E7C61':'FFCCCCCC'}};
+        ws.getCell(r,3).font = {name:'맑은 고딕',size:9,bold:true, color:{argb: emp.regular==='Y'?'FF00338D':'FFCCCCCC'}};
         sSC(r,4, emp.reason||'', {bg:bg, color: emp.reason?'FFC0392B':null});
         sSC(r,5, emp.shortTimeType||'', {bg:bg});
-        sSC(r,6, emp.domestic, {bg:bg, bold:emp.domestic==='Y', color:emp.domestic==='Y'?'FF0E7C61':'FFCCCCCC'});
-        sSC(r,7, emp.metro, {bg:bg, bold:emp.metro==='Y', color:emp.metro==='Y'?'FF0E7C61':'FFCCCCCC'});
+        sSC(r,6, emp.domestic, {bg:bg, bold:emp.domestic==='Y', color:emp.domestic==='Y'?'FF00338D':'FFCCCCCC'});
+        sSC(r,7, emp.metro, {bg:bg, bold:emp.metro==='Y', color:emp.metro==='Y'?'FF00338D':'FFCCCCCC'});
         sSC(r,8, emp.hireStr||'', {bg:bg});
         sSC(r,9, emp.workPeriod||'', {bg:bg});
-        sSC(r,12, emp.isYouthYear, {bg:bg, bold:emp.isYouthYear==='Y', color:emp.isYouthYear==='Y'?'FF0E7C61':'FFCCCCCC'});
-        sSC(r,13, emp.isDisabled, {bg:bg, bold:emp.isDisabled==='Y', color:emp.isDisabled==='Y'?'FF0E7C61':'FFCCCCCC'});
-        sSC(r,14, emp.elderlyAtHire?'Y':'N', {bg:bg, bold:emp.elderlyAtHire, color:emp.elderlyAtHire?'FF0E7C61':'FFCCCCCC'});
+        sSC(r,12, emp.isYouthYear, {bg:bg, bold:emp.isYouthYear==='Y', color:emp.isYouthYear==='Y'?'FF00338D':'FFCCCCCC'});
+        sSC(r,13, emp.isDisabled, {bg:bg, bold:emp.isDisabled==='Y', color:emp.isDisabled==='Y'?'FF00338D':'FFCCCCCC'});
+        sSC(r,14, emp.elderlyAtHire?'Y':'N', {bg:bg, bold:emp.elderlyAtHire, color:emp.elderlyAtHire?'FF00338D':'FFCCCCCC'});
         var totalF = 'IF(C'+r+'="Y",FLOOR((VALUE(RIGHT(I'+r+',2))-VALUE(LEFT(I'+r+',2))+1)*IF(E'+r+'="",1,VALUE(E'+r+')),0.01),0)';
         var age30F = '(LEFT(A'+r+',4)+30)*10000+VALUE(RIGHT(A'+r+',4))';
         sFC(r,11,
@@ -4633,7 +4633,7 @@ window.sahoeExportExcel = function() {
   const goyongRate = parseFloat(document.getElementById('sahoe-goyong-rate').value) / 100 || 0;
   const sanjaeRate = parseFloat(document.getElementById('sahoe-sanjae-rate').value) / 100 || 0;
 
-  const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2C5F2D'} };
+  const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF00338D'} };
   const headerFont = { bold:true, color:{argb:'FFFFFFFF'}, size:11 };
   const borderThin = { top:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'}, bottom:{style:'thin'} };
   const numFmt = '#,##0';
