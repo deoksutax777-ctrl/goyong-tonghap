@@ -3592,6 +3592,7 @@ window.calcExportExcel = async function() {
   function specRef(sheetName, col) { return "'" + sheetName + "'!" + col + "7"; }
 
   // ── 시작연도별 산출내역 시트 ──
+  const sheetRefs = {}; // { startY: { sheetName, netCol, rows: { year: rowNum } } }
   lastAll.forEach(({startY, danggi, tl}) => {
     const rt = getRates(corp, startY);
     const ws = wb.addWorksheet(startY+'년 산출');
@@ -3912,6 +3913,11 @@ window.calcExportExcel = async function() {
     });
     const calcLast = r2-1;
 
+    // sheetRefs 저장 (종합 시트에서 참조용)
+    const sRef = { sheetName: startY+'년 산출', netCol: L(netCI), rows: {} };
+    tl.forEach(item => { if(item.role!=='전기' && calcRowMap[item.role]) sRef.rows[item.year]=calcRowMap[item.role]; });
+    sheetRefs[startY] = sRef;
+
     dc(ws,r2,0,'합계'); dc(ws,r2,1,'');
     fc(ws,r2,amtCI,'SUM('+L(amtCI)+calcFirst+':'+L(amtCI)+calcLast+')',totalCredit,nf);
     fc(ws,r2,chugCI,'SUM('+L(chugCI)+calcFirst+':'+L(chugCI)+calcLast+')',totalChug,nf);
@@ -4004,17 +4010,56 @@ window.calcExportExcel = async function() {
       ws.getCell('A'+r2).value='검증'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
       ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
       r2++;
-      const vRows=[
-        ['당기 증가 인원',v.totalEffInc,nf2],['연간 공제액'+(v.totalDec?' (전체감소→0)':v.youthDec?' (비청년단가)':''),v.fsPerYear,nf],['적용 연수',v.numY,null],
-        ['검증 합계',v.fsTotal,nf],['실제 순공제 합계',v.actualNet,nf],
-        ['결과',v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'원)',null],
-      ];
-      vRows.forEach(([label,val,fmt],idx)=>{
-        dc(ws,r2,0,label); const vc=dc(ws,r2,1,val,fmt);
-        ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        if(label==='결과') vc.font=Fn(10,true,v.match?C.pri:C.red);
-        stripe(ws,r2,2,idx%2===1); r2++;
-      });
+
+      // 당기 증가 인원 (수식: 당기 inc 합계)
+      const dCR=danggiCalcRow;
+      const incSumF = isS ? 'C'+dCR+'+D'+dCR+'+E'+dCR+'+F'+dCR
+                    : hasN ? 'C'+dCR+'+D'+dCR
+                    : 'C'+dCR;
+      dc(ws,r2,0,'당기 증가 인원'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      fc(ws,r2,1,incSumF,v.totalEffInc,nf2); stripe(ws,r2,2,false); r2++;
+
+      // 연간 공제액 (수식)
+      const vLabel='연간 공제액'+(v.totalDec?' (전체감소→0)':v.youthDec?' (비청년단가)':'');
+      dc(ws,r2,0,vLabel); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      if(v.totalDec){
+        dc(ws,r2,1,0,nf);
+      } else if(v.youthDec){
+        // 비청년단가 적용 공제액
+        const vyF = isS ? ia('C'+dCR,refNM)+'+'+ia('D'+dCR,refNL)+'+'+ia('E'+dCR,refNM)+'+'+ia('F'+dCR,refNL)
+                  : hasN ? ia('C'+dCR,refNM)+'+'+ia('D'+dCR,refNM)
+                  : ia('C'+dCR,refYM);
+        fc(ws,r2,1,vyF,v.fsPerYear,nf);
+      } else {
+        fc(ws,r2,1,L(amtCI)+dCR,v.fsPerYear,nf); // = 당기 공제액 셀 참조
+      }
+      const vPerYearCell='B'+r2;
+      stripe(ws,r2,2,true); r2++;
+
+      // 적용 연수
+      dc(ws,r2,0,'적용 연수'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      dc(ws,r2,1,v.numY); const vNumYCell='B'+r2;
+      stripe(ws,r2,2,false); r2++;
+
+      // 검증 합계 (= 연간 공제액 × 적용 연수)
+      dc(ws,r2,0,'검증 합계'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      fc(ws,r2,1,vPerYearCell+'*'+vNumYCell,v.fsTotal,nf);
+      const vTotalCell='B'+r2;
+      stripe(ws,r2,2,true); r2++;
+
+      // 실제 순공제 합계 (= 합계행의 순공제 셀 참조)
+      const totNetCell=L(netCI)+(calcLast+1); // 합계행
+      dc(ws,r2,0,'실제 순공제 합계'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      fc(ws,r2,1,totNetCell,v.actualNet,nf);
+      const vActualCell='B'+r2;
+      stripe(ws,r2,2,false); r2++;
+
+      // 결과 (= IF 수식)
+      dc(ws,r2,0,'결과'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      const resultF='IF(ABS('+vTotalCell+'-'+vActualCell+')<5000,"검증 통과","불일치 (차이: "&TEXT('+vTotalCell+'-'+vActualCell+',"#,##0")&"원)")';
+      const vc=fc(ws,r2,1,resultF,v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'원)');
+      vc.font=Fn(10,true,v.match?C.pri:C.red);
+      stripe(ws,r2,2,true); r2++;
     }
 
     // ── 명세서 연동 참조 테이블 (간략표 시트가 있을 때) ──
@@ -4088,7 +4133,15 @@ window.calcExportExcel = async function() {
     let rowC=0,rowCh=0;
     calYears.forEach((cy,i)=>{
       const d=matrix[cy]&&matrix[cy][sy];
-      if(d){
+      const sr=sheetRefs[sy];
+      if(d && sr && sr.rows[cy]){
+        colC2[cy]+=d.credit; colCh2[cy]+=d.chugjing;
+        rowC+=d.credit; rowCh+=d.chugjing;
+        // 산출 시트의 순공제 셀 참조
+        const ref="'"+sr.sheetName+"'!"+sr.netCol+sr.rows[cy];
+        const c=fc(ws2,row,i+1,ref,d.credit-d.chugjing,nf);
+        if(d.chugjing>0) c.font=Fn(10,false,C.red);
+      } else if(d){
         colC2[cy]+=d.credit; colCh2[cy]+=d.chugjing;
         rowC+=d.credit; rowCh+=d.chugjing;
         if(d.chugjing>0){const c=dc(ws2,row,i+1,d.credit-d.chugjing,nf);c.font=Fn(10,false,C.red);}
