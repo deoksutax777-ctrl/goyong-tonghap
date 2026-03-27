@@ -3919,6 +3919,85 @@ window.calcExportExcel = async function() {
     totRow(ws,r2,cHdr.length);
     r2 += 2;
 
+    // ── 산출식 ──
+    ws.mergeCells('A'+r2+':'+L(maxCol-1)+r2);
+    ws.getCell('A'+r2).value='산출식'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
+    ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd;
+    for(let j=1;j<maxCol;j++){ws.getCell(L(j)+r2).fill=fl(C.pri);ws.getCell(L(j)+r2).border=bd;}
+    r2++;
+
+    // 적용 단가
+    {
+      let rateDesc='';
+      if(isS){
+        rateDesc=`청년: 수도권 ${fmt(rt.youth.metro*W)}원 / 비수도권 ${fmt(rt.youth.local*W)}원`;
+        if(hasN) rateDesc+=` | 비청년: 수도권 ${fmt(rt.normal.metro*W)}원 / 비수도권 ${fmt(rt.normal.local*W)}원`;
+      } else {
+        rateDesc=`청년: ${fmt(rt.youth.metro*W)}원`;
+        if(hasN) rateDesc+=` | 비청년: ${fmt(rt.normal.metro*W)}원`;
+      }
+      ws.mergeCells('A'+r2+':'+L(maxCol-1)+r2);
+      ws.getCell('A'+r2).value='[적용 단가] '+rateDesc;
+      ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+      ws.getCell('A'+r2).border=bd; ws.getCell('A'+r2).fill=fl(C.pale);
+      for(let j=1;j<maxCol;j++){ws.getCell(L(j)+r2).border=bd;ws.getCell(L(j)+r2).fill=fl(C.pale);}
+      r2++;
+    }
+
+    // 당기 산식
+    {
+      let desc='';
+      if(isS){
+        desc=`당기(${startY}): 청년 수도권 ${fmtD(danggi.inc.ym)}명×${fmt(rt.youth.metro*W)} + 비수도권 ${fmtD(danggi.inc.yl)}명×${fmt(rt.youth.local*W)}`;
+        if(hasN) desc+=` + 비청년 수도권 ${fmtD(danggi.inc.nm)}명×${fmt(rt.normal.metro*W)} + 비수도권 ${fmtD(danggi.inc.nl)}명×${fmt(rt.normal.local*W)}`;
+        desc+=` = ${fmt(danggi.total)}원`;
+      } else {
+        const yI=rp2(danggi.inc.ym+danggi.inc.yl), nI=rp2(danggi.inc.nm+danggi.inc.nl);
+        desc=`당기(${startY}): 청년 ${fmtD(yI)}명×${fmt(rt.youth.metro*W)}`;
+        if(hasN) desc+=` + 비청년 ${fmtD(nI)}명×${fmt(rt.normal.metro*W)}`;
+        desc+=` = ${fmt(danggi.total)}원`;
+      }
+      ws.mergeCells('A'+r2+':'+L(maxCol-1)+r2);
+      ws.getCell('A'+r2).value=desc;
+      ws.getCell('A'+r2).font=Fn(9); ws.getCell('A'+r2).border=bd;
+      for(let j=1;j<maxCol;j++){ws.getCell(L(j)+r2).border=bd;}
+      r2++;
+    }
+
+    // 추가공제 산식
+    tl.forEach(item => {
+      if(!item.hasData || item.role==='전기' || item.role==='당기') return;
+      let desc=`${item.role}(${item.year}): `;
+      if(item.addtl){
+        const yRate = item.addtl.youthDec ? rt.normal : rt.youth;
+        if(item.addtl.youthDec) desc+='[청년감소→비청년단가] ';
+        if(isS){
+          desc+=`유지 → 청년 수도권 ${fmtD(item.addtl.inc.ym)}명×${fmt(yRate.metro*W)} + 비수도권 ${fmtD(item.addtl.inc.yl)}명×${fmt(yRate.local*W)}`;
+          if(hasN) desc+=` + 비청년 수도권 ${fmtD(item.addtl.inc.nm)}명×${fmt(rt.normal.metro*W)} + 비수도권 ${fmtD(item.addtl.inc.nl)}명×${fmt(rt.normal.local*W)}`;
+          desc+=` = ${fmt(item.credit)}원`;
+        } else {
+          const kY=rp2(item.addtl.inc.ym+item.addtl.inc.yl), kN=rp2(item.addtl.inc.nm+item.addtl.inc.nl);
+          desc+=`유지 → 청년 ${fmtD(kY)}명×${fmt(yRate.metro*W)}`;
+          if(hasN) desc+=` + 비청년 ${fmtD(kN)}명×${fmt(rt.normal.metro*W)}`;
+          desc+=` = ${fmt(item.credit)}원`;
+        }
+      }
+      if(item.sahu && item.sahu.type!=='ok'){
+        desc+=` | 사후관리(${item.sahu.type}): 산출 ${fmt(item.sahu.raw)}원`;
+        if(item.prevChug>0) desc+=` - 기추징 ${fmt(item.prevChug)}원`;
+        desc+=` (한도 ${fmt(item.limit)}원) → 추징 ${fmt(item.chugjing)}원`;
+      } else if(item.sahu){
+        desc+=' | 사후관리: 정상';
+      }
+      ws.mergeCells('A'+r2+':'+L(maxCol-1)+r2);
+      ws.getCell('A'+r2).value=desc;
+      ws.getCell('A'+r2).font=Fn(9); ws.getCell('A'+r2).border=bd;
+      if(item.chugjing>0) ws.getCell('A'+r2).font=Fn(9,false,C.red);
+      for(let j=1;j<maxCol;j++){ws.getCell(L(j)+r2).border=bd;}
+      r2++;
+    });
+    r2++;
+
     const v=calcVerification(tl,danggi,corp,startY);
     if(v){
       ws.mergeCells('A'+r2+':B'+r2);
