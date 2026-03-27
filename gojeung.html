@@ -3019,11 +3019,16 @@ function calcVerification(tl, danggi, corp, startY) {
   const wDanggi = getW(startY, startY);
   const youthDec = youthW(wLast) < youthW(wDanggi);
 
+  // 마지막 연도 전체 상시근로자가 전기보다 감소 → 증가 미유지 → 기대값 0
+  const totalDec = totalW(wLast) < totalW(wPrev);
+
   // 원래 당기 증가분 기준, 청년감소 시 비청년단가 적용하여 검증
   const r = getRates(corp, startY);
   const inc = danggi.inc; // 원래 당기 증가 인원 사용
   let fsPerYear;
-  if (youthDec) {
+  if (totalDec) {
+    fsPerYear = 0; // 전체 감소 → 전액 추징 → 기대 순공제 0
+  } else if (youthDec) {
     // 청년을 비청년으로 간주: 청년단가 대신 비청년단가 적용
     const isS = (corp==='중소');
     if (isS) {
@@ -3044,7 +3049,7 @@ function calcVerification(tl, danggi, corp, startY) {
   const match = Math.abs(fsTotal - actualNet) < 5000;
   const totalEffInc = inc.ym + inc.yl + inc.nm + inc.nl;
 
-  return { effInc, totalEffInc, fsPerYear, fsTotal, actualNet, numY, match, lastYear: last.year, youthDec };
+  return { effInc, totalEffInc, fsPerYear, fsTotal, actualNet, numY, match, lastYear: last.year, youthDec, totalDec };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3181,8 +3186,9 @@ function renderTimelines(all) {
       const v = calcVerification(tl, danggi, corp, startY);
       if (v) {
         h += '<div class="f-verify">';
-        h += `<div class="f-title">검증 (당기 증가분${v.youthDec?' · 청년→비청년단가':''} 기준)</div>`;
-        if (v.youthDec) h += `<span style="color:var(--warn);">※ 청년감소 → 비청년단가로 재계산</span><br>`;
+        h += `<div class="f-title">검증 (당기 증가분${v.totalDec?' · 전체감소':v.youthDec?' · 청년→비청년단가':''} 기준)</div>`;
+        if (v.totalDec) h += `<span style="color:var(--warn);">※ 전체 상시근로자 감소 → 증가 미유지 (기대 순공제 0)</span><br>`;
+        else if (v.youthDec) h += `<span style="color:var(--warn);">※ 청년감소 → 비청년단가로 재계산</span><br>`;
         h += `당기 증가: <code>${fmtD(v.totalEffInc)}명</code> → `;
         h += `연 <code>${fmt(v.fsPerYear)}원</code> × ${v.numY}년 = <code>${fmt(v.fsTotal)}원</code><br>`;
         h += `실제 순공제 합계: <code>${fmt(v.actualNet)}원</code><br>`;
@@ -3688,7 +3694,7 @@ window.calcExportExcel = async function() {
       ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
       r2++;
       const vRows=[
-        ['당기 증가 인원',v.totalEffInc,nf2],['연간 공제액'+(v.youthDec?' (비청년단가)':''),v.fsPerYear,nf],['적용 연수',v.numY,null],
+        ['당기 증가 인원',v.totalEffInc,nf2],['연간 공제액'+(v.totalDec?' (전체감소→0)':v.youthDec?' (비청년단가)':''),v.fsPerYear,nf],['적용 연수',v.numY,null],
         ['검증 합계',v.fsTotal,nf],['실제 순공제 합계',v.actualNet,nf],
         ['결과',v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'원)',null],
       ];
