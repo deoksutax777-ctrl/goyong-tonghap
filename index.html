@@ -3066,68 +3066,22 @@ function calc_recalcAll() {
 // 검증
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calc_calcVerification(tl, danggi, corp, startY) {
-  const wPrev = calc_getW(startY, startY-1);
-  const dataItems = tl.filter(t => t.hasData && t.role!=='전기');
-  if (dataItems.length <= 1) return null;
+  // 연도별 검증: 추가공제 ≈ 당기공제 - 추징
+  const items = tl.filter(t => t.hasData && t.role!=='전기' && t.role!=='당기');
+  if (items.length === 0) return null;
 
-  const last = dataItems[dataItems.length-1];
-  const wLast = calc_getW(startY, last.year);
-  const wDanggi = calc_getW(startY, startY);
-  const youthDec = calc_youthW(wLast) < calc_youthW(wDanggi);
+  const checks = [];
+  let allMatch = true;
 
-  // 마지막 연도 전체 상시근로자가 전기보다 감소 → 증가 미유지 → 기대값 0
-  const totalDec = calc_totalW(wLast) < calc_totalW(wPrev);
-  // 당기 대비 부분감소 (전기 대비는 유지)
-  const partialDec = !totalDec && (calc_totalW(wLast) < calc_totalW(wDanggi));
-
-  const r = RATES[corp];
-  const inc = danggi.inc;
-  let fsPerYear, effInc;
-  if (totalDec) {
-    fsPerYear = 0;
-    effInc = { ym:0, yl:0, nm:0, nl:0 };
-  } else if (youthDec) {
-    const isS = (corp==='중소');
-    if (partialDec) {
-      const dTotal = calc_rp2(inc.ym + inc.yl + inc.nm + inc.nl);
-      const totalKept = Math.max(0, calc_rp2(calc_totalW(wLast) - calc_totalW(wPrev)));
-      const maintained = Math.min(dTotal, totalKept);
-      const scale = dTotal > 0 ? maintained / dTotal : 0;
-      effInc = { ym: calc_truncW(inc.ym*scale), yl: calc_truncW(inc.yl*scale), nm: calc_truncW(inc.nm*scale), nl: calc_truncW(inc.nl*scale) };
-    } else {
-      effInc = inc;
-    }
-    if (isS) {
-      fsPerYear = calc_truncAmt(effInc.ym*r.normal.metro*W) + calc_truncAmt(effInc.yl*r.normal.local*W)
-                + calc_truncAmt(effInc.nm*r.normal.metro*W) + calc_truncAmt(effInc.nl*r.normal.local*W);
-    } else {
-      fsPerYear = calc_truncAmt((effInc.ym+effInc.yl)*r.normal.metro*W)
-                + calc_truncAmt((effInc.nm+effInc.nl)*r.normal.metro*W);
-    }
-  } else if (partialDec) {
-    // 청년 유지, 당기 대비 부분감소 → 유지인원 기준 산출
-    const kept = calc_maxZ(calc_diffW(wLast, wPrev));
-    effInc = { ym: calc_truncW(Math.min(inc.ym,kept.ym)), yl: calc_truncW(Math.min(inc.yl,kept.yl)), nm: calc_truncW(Math.min(inc.nm,kept.nm)), nl: calc_truncW(Math.min(inc.nl,kept.nl)) };
-    const isS = (corp==='중소');
-    if (isS) {
-      fsPerYear = calc_truncAmt(effInc.ym*r.youth.metro*W) + calc_truncAmt(effInc.yl*r.youth.local*W)
-                + calc_truncAmt(effInc.nm*r.normal.metro*W) + calc_truncAmt(effInc.nl*r.normal.local*W);
-    } else {
-      fsPerYear = calc_truncAmt((effInc.ym+effInc.yl)*r.youth.metro*W)
-                + calc_truncAmt((effInc.nm+effInc.nl)*r.normal.metro*W);
-    }
-  } else {
-    fsPerYear = danggi.total;
-    effInc = inc;
+  for (const item of items) {
+    const addtl = item.credit;
+    const expected = danggi.total - item.chugjing;
+    const match = Math.abs(addtl - expected) < 5000;
+    if (!match) allMatch = false;
+    checks.push({ year: item.year, role: item.role, addtl, chugjing: item.chugjing, expected, match });
   }
 
-  const totalEffInc = effInc.ym + effInc.yl + effInc.nm + effInc.nl;
-  const numY = dataItems.length;
-  const fsTotal = fsPerYear * numY;
-  const actualNet = dataItems.reduce((s,t) => s + t.credit - t.chugjing, 0);
-  const match = Math.abs(fsTotal - actualNet) < 5000;
-
-  return { effInc, totalEffInc, fsPerYear, fsTotal, actualNet, numY, match, lastYear: last.year, youthDec, totalDec, partialDec };
+  return { checks, allMatch, danggiTotal: danggi.total };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3258,22 +3212,19 @@ function calc_renderTimelines(all) {
       const v = calc_calcVerification(tl, danggi, corp, startY);
       if (v) {
         h += '<div class="f-verify">';
-        h += `<div class="f-title">검증 (${v.totalDec?'전체감소':v.partialDec?'유지인원':'당기 증가분'}${v.youthDec?' · 청년→비청년단가':''} 기준)</div>`;
-        if (v.totalDec) h += `<span style="color:var(--warn);">\u203B 전체감소 \u2192 기대 순공제 0</span><br>`;
-        else if (v.youthDec && v.partialDec) h += `<span style="color:var(--warn);">\u203B 청년감소 + 당기 대비 부분감소 \u2192 유지인원 · 비청년단가 적용</span><br>`;
-        else if (v.youthDec) h += `<span style="color:var(--warn);">\u203B 청년감소 \u2192 비청년단가 적용</span><br>`;
-        else if (v.partialDec) h += `<span style="color:var(--warn);">\u203B 당기 대비 부분감소 \u2192 유지인원 기준 재계산</span><br>`;
-        h += `${v.lastYear}년 기준 ${v.partialDec?'유지':'유효'}증가: <code>${calc_fmtD(v.totalEffInc)}명</code> \u2192 `;
-        h += `연 <code>${calc_fmt(v.fsPerYear)}원</code> \u00D7 ${v.numY}년 = <code>${calc_fmt(v.fsTotal)}원</code><br>`;
-        h += `실제 순공제 합계: <code>${calc_fmt(v.actualNet)}원</code><br>`;
-        if (v.match) {
-          h += `<span class="verify-pass">\u2713 검증 통과</span> (${calc_fmt(v.fsTotal)}원 = ${calc_fmt(v.actualNet)}원)`;
-        } else {
-          const diff = v.fsTotal - v.actualNet;
-          h += `<span class="verify-fail">\u2717 불일치</span> (차이: ${calc_fmt(diff)}원`;
-          if (diff > 0) h += ' - 중간연도 추가추징 미환급분 추정';
-          h += ')';
+        h += '<div class="f-title">검증 (추가공제 = 당기공제 \u2212 추징)</div>';
+        for (const c of v.checks) {
+          const sym = c.match ? '\u2713' : '\u2717';
+          const cls = c.match ? 'verify-pass' : 'verify-fail';
+          h += `<div>${c.role}(${c.year}): `;
+          h += `추가공제 <code>${calc_fmt(c.addtl)}원</code> `;
+          h += c.match ? '=' : '\u2260';
+          h += ` 당기 <code>${calc_fmt(v.danggiTotal)}원</code> \u2212 추징 <code>${calc_fmt(c.chugjing)}원</code>`;
+          h += ` = <code>${calc_fmt(c.expected)}원</code>`;
+          h += ` <span class="${cls}">${sym}</span></div>`;
         }
+        if (v.allMatch) h += '<div style="margin-top:4px;"><span class="verify-pass">\u2713 전체 검증 통과</span></div>';
+        else h += '<div style="margin-top:4px;"><span class="verify-fail">\u2717 일부 불일치</span></div>';
         h += '</div>';
       }
 
@@ -4051,59 +4002,40 @@ async function calc_exportExcel() {
     });
     r2++;
 
-    // ── 검증 ──
+    // ── 검증 (추가공제 = 당기공제 − 추징) ──
     const v=calc_calcVerification(tl,danggi,corp,startY);
     if(v){
       ws.mergeCells('A'+r2+':B'+r2);
-      ws.getCell('A'+r2).value='검증'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
+      ws.getCell('A'+r2).value='검증 (추가공제 = 당기 − 추징)'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
       ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
       r2++;
 
-      const dCR=danggiCalcRow;
-      const incSumF = isS ? 'C'+dCR+'+D'+dCR+'+E'+dCR+'+F'+dCR
-                    : hasN ? 'C'+dCR+'+D'+dCR
-                    : 'C'+dCR;
-      dc(ws,r2,0,v.partialDec?'유지 증가 인원':'당기 증가 인원'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-      if(v.partialDec){ dc(ws,r2,1,v.totalEffInc,nf2); } else { fc(ws,r2,1,incSumF,v.totalEffInc,nf2); }
-      stripe(ws,r2,2,false); r2++;
+      const dAmt=L(amtCI)+danggiCalcRow; // 당기공제 셀
+      tl.filter(t=>t.hasData&&t.role!=='전기'&&t.role!=='당기').forEach((item,idx)=>{
+        const cr=calcRowMap[item.role];
+        if(!cr) return;
+        const addtlCell=L(amtCI)+cr, chugCell=L(chugCI)+cr;
+        const even=idx%2===0;
 
-      const vLabel='연간 공제액'+(v.totalDec?' (전체감소→0)':v.partialDec?' (유지인원 기준)':v.youthDec?' (비청년단가)':'');
-      dc(ws,r2,0,vLabel); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-      if(v.totalDec){
-        dc(ws,r2,1,0,nf);
-      } else if(v.partialDec){
-        dc(ws,r2,1,v.fsPerYear,nf);
-      } else if(v.youthDec){
-        const vyF = isS ? ia('C'+dCR,refNM)+'+'+ia('D'+dCR,refNL)+'+'+ia('E'+dCR,refNM)+'+'+ia('F'+dCR,refNL)
-                  : hasN ? ia('C'+dCR,refNM)+'+'+ia('D'+dCR,refNM)
-                  : ia('C'+dCR,refYM);
-        fc(ws,r2,1,vyF,v.fsPerYear,nf);
-      } else {
-        fc(ws,r2,1,L(amtCI)+dCR,v.fsPerYear,nf);
-      }
-      const vPerYearCell='B'+r2;
-      stripe(ws,r2,2,true); r2++;
+        // 추가공제
+        dc(ws,r2,0,item.role+' 추가공제'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        fc(ws,r2,1,addtlCell,item.credit,nf);
+        stripe(ws,r2,2,even); r2++;
 
-      dc(ws,r2,0,'적용 연수'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-      dc(ws,r2,1,v.numY); const vNumYCell='B'+r2;
-      stripe(ws,r2,2,false); r2++;
+        // 당기 - 추징
+        dc(ws,r2,0,item.role+' 당기−추징'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        fc(ws,r2,1,dAmt+'-'+chugCell,danggi.total-item.chugjing,nf);
+        const expCell='B'+r2;
+        stripe(ws,r2,2,!even); r2++;
 
-      dc(ws,r2,0,'검증 합계'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-      fc(ws,r2,1,vPerYearCell+'*'+vNumYCell,v.fsTotal,nf);
-      const vTotalCell='B'+r2;
-      stripe(ws,r2,2,true); r2++;
-
-      const totNetCell=L(netCI)+(calcLast+1);
-      dc(ws,r2,0,'실제 순공제 합계'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-      fc(ws,r2,1,totNetCell,v.actualNet,nf);
-      const vActualCell='B'+r2;
-      stripe(ws,r2,2,false); r2++;
-
-      dc(ws,r2,0,'결과'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-      const resultF='IF(ABS('+vTotalCell+'-'+vActualCell+')<5000,"검증 통과","불일치 (차이: "&TEXT('+vTotalCell+'-'+vActualCell+',"#,##0")&"원)")';
-      const vc=fc(ws,r2,1,resultF,v.match?'검증 통과':'불일치 (차이: '+(v.fsTotal-v.actualNet)+'원)');
-      vc.font=Fn(10,true,v.match?C.pri:C.red);
-      stripe(ws,r2,2,true); r2++;
+        // 결과
+        const c=v.checks[idx];
+        dc(ws,r2,0,item.role+' 결과'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        const rF='IF(ABS('+addtlCell+'-'+expCell+')<5000,"\u2713 일치","\u2717 불일치 ("&TEXT('+addtlCell+'-'+expCell+',"#,##0")&"원)")';
+        const rc=fc(ws,r2,1,rF,c.match?'\u2713 일치':'\u2717 불일치');
+        rc.font=Fn(9,true,c.match?C.pri:C.red);
+        stripe(ws,r2,2,even); r2++;
+      });
     }
 
     // ── 명세서 연동 참조 테이블 ──
