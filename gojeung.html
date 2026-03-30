@@ -3081,19 +3081,42 @@ window.calcRecalcAll = recalcAll;
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 검증
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function calcVerification(tl, danggi) {
+function calcVerification(tl, danggi, startY) {
   const items = tl.filter(t => t.hasData && t.role!=='전기' && t.role!=='당기');
   if (items.length === 0) return null;
 
+  const wDanggi = getW(startY, startY);
+  const wPrev = getW(startY, startY-1);
+  const r = getRates(getCorp(), startY);
+  const cats = ['ym','yl','nm','nl'];
+  const yRates = [r.youth.metro, r.youth.local, r.normal.metro, r.normal.local];
+  const nRates = [r.normal.metro, r.normal.local, r.normal.metro, r.normal.local];
   const checks = [];
   let allMatch = true;
 
   for (const item of items) {
-    const addtl = item.credit;
-    const expected = danggi.total - item.chugjing;
-    const match = Math.abs(addtl - expected) < 5000;
+    const wC = getW(startY, item.year);
+    const yd = item.addtl && item.addtl.youthDec;
+    let expected;
+
+    if (yd) {
+      const dTotal = rp2(danggi.inc.ym+danggi.inc.yl+danggi.inc.nm+danggi.inc.nl);
+      const totalKept = Math.max(0, rp2(totalW(wC)-totalW(wPrev)));
+      const sc = dTotal > 0 ? Math.min(dTotal,totalKept)/dTotal : 0;
+      expected = 0;
+      for (let k=0;k<4;k++) expected += truncAmt(truncW(danggi.inc[cats[k]]*sc)*nRates[k]*W);
+    } else {
+      expected = 0;
+      for (let k=0;k<4;k++) {
+        const dec = Math.max(0, rp2(wDanggi[cats[k]]-wC[cats[k]]));
+        const eff = Math.min(dec, danggi.inc[cats[k]]);
+        expected += danggi.amt[cats[k]] - truncAmt(eff*yRates[k]*W);
+      }
+    }
+
+    const match = Math.abs(item.credit - expected) < 5000;
     if (!match) allMatch = false;
-    checks.push({ year: item.year, role: item.role, addtl, chugjing: item.chugjing, expected, match });
+    checks.push({ year: item.year, role: item.role, addtl: item.credit, expected, match, youthDec: yd });
   }
 
   return { checks, allMatch };
@@ -3230,18 +3253,18 @@ function renderTimelines(all) {
       });
 
       // 검증
-      const v = calcVerification(tl, danggi);
+      const v = calcVerification(tl, danggi, startY);
       if (v) {
         h += '<div class="f-verify">';
-        h += '<div class="f-title">검증 (추가공제 = 당기공제 − 추징)</div>';
+        h += '<div class="f-title">검증 (카테고리별 추가공제)</div>';
         for (const c of v.checks) {
           const sym = c.match ? '&#10003;' : '&#10007;';
           const cls = c.match ? 'verify-pass' : 'verify-fail';
           h += `<div>${c.role}(${c.year}): `;
           h += `추가공제 <code>${fmt(c.addtl)}원</code> `;
-          h += c.match ? '=' : '≠';
-          h += ` 당기 <code>${fmt(danggi.total)}원</code> − 추징 <code>${fmt(c.chugjing)}원</code>`;
-          h += ` = <code>${fmt(c.expected)}원</code>`;
+          h += c.match ? '=' : '&ne;';
+          h += ` 기대 <code>${fmt(c.expected)}원</code>`;
+          if (c.youthDec) h += ' <span style="color:var(--warn);font-size:11px;">(청년&rarr;비청년단가)</span>';
           h += ` <span class="${cls}">${sym}</span></div>`;
         }
         if (v.allMatch) h += '<div style="margin-top:4px;"><span class="verify-pass">&#10003; 전체 검증 통과</span></div>';
@@ -3978,26 +4001,25 @@ window.calcExportExcel = async function() {
     });
     r2++;
 
-    const v=calcVerification(tl,danggi);
+    const v=calcVerification(tl,danggi,startY);
     if(v){
       ws.mergeCells('A'+r2+':B'+r2);
-      ws.getCell('A'+r2).value='검증 (추가공제 = 당기 \u2212 추징)'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
+      ws.getCell('A'+r2).value='검증 (카테고리별 추가공제)'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
       ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
       r2++;
 
-      const dAmt=L(amtCI)+danggiCalcRow;
       v.checks.forEach((c,idx)=>{
         const cr=calcRowMap[c.role];
         if(!cr) return;
-        const addtlCell=L(amtCI)+cr, chugCell=L(chugCI)+cr;
+        const addtlCell=L(amtCI)+cr;
         const even=idx%2===0;
 
         dc(ws,r2,0,c.role+' 추가공제'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
         fc(ws,r2,1,addtlCell,c.addtl,nf);
         stripe(ws,r2,2,even); r2++;
 
-        dc(ws,r2,0,c.role+' 당기\u2212추징'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        fc(ws,r2,1,dAmt+'-'+chugCell,c.expected,nf);
+        dc(ws,r2,0,c.role+' 기대'+(c.youthDec?' (비청년단가)':'')); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        dc(ws,r2,1,c.expected,nf);
         const expCell='B'+r2;
         stripe(ws,r2,2,!even); r2++;
 
