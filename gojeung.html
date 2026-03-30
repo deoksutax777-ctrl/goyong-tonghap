@@ -3081,8 +3081,7 @@ window.calcRecalcAll = recalcAll;
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 검증
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function calcVerification(tl, danggi, corp, startY) {
-  // 연도별 검증: 추가공제 ≈ 당기공제 - 추징
+function calcVerification(tl, danggi) {
   const items = tl.filter(t => t.hasData && t.role!=='전기' && t.role!=='당기');
   if (items.length === 0) return null;
 
@@ -3097,7 +3096,7 @@ function calcVerification(tl, danggi, corp, startY) {
     checks.push({ year: item.year, role: item.role, addtl, chugjing: item.chugjing, expected, match });
   }
 
-  return { checks, allMatch, danggiTotal: danggi.total };
+  return { checks, allMatch };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3231,7 +3230,7 @@ function renderTimelines(all) {
       });
 
       // 검증
-      const v = calcVerification(tl, danggi, corp, startY);
+      const v = calcVerification(tl, danggi);
       if (v) {
         h += '<div class="f-verify">';
         h += '<div class="f-title">검증 (추가공제 = 당기공제 − 추징)</div>';
@@ -3241,7 +3240,7 @@ function renderTimelines(all) {
           h += `<div>${c.role}(${c.year}): `;
           h += `추가공제 <code>${fmt(c.addtl)}원</code> `;
           h += c.match ? '=' : '≠';
-          h += ` 당기 <code>${fmt(v.danggiTotal)}원</code> − 추징 <code>${fmt(c.chugjing)}원</code>`;
+          h += ` 당기 <code>${fmt(danggi.total)}원</code> − 추징 <code>${fmt(c.chugjing)}원</code>`;
           h += ` = <code>${fmt(c.expected)}원</code>`;
           h += ` <span class="${cls}">${sym}</span></div>`;
         }
@@ -3979,32 +3978,31 @@ window.calcExportExcel = async function() {
     });
     r2++;
 
-    const v=calcVerification(tl,danggi,corp,startY);
+    const v=calcVerification(tl,danggi);
     if(v){
       ws.mergeCells('A'+r2+':B'+r2);
-      ws.getCell('A'+r2).value='검증 (추가공제 = 당기 − 추징)'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
+      ws.getCell('A'+r2).value='검증 (추가공제 = 당기 \u2212 추징)'; ws.getCell('A'+r2).font=Fn(10,true,C.white);
       ws.getCell('A'+r2).fill=fl(C.pri); ws.getCell('A'+r2).border=bd; ws.getCell('B'+r2).fill=fl(C.pri); ws.getCell('B'+r2).border=bd;
       r2++;
 
       const dAmt=L(amtCI)+danggiCalcRow;
-      tl.filter(t=>t.hasData&&t.role!=='전기'&&t.role!=='당기').forEach((item,idx)=>{
-        const cr=calcRowMap[item.role];
+      v.checks.forEach((c,idx)=>{
+        const cr=calcRowMap[c.role];
         if(!cr) return;
         const addtlCell=L(amtCI)+cr, chugCell=L(chugCI)+cr;
         const even=idx%2===0;
 
-        dc(ws,r2,0,item.role+' 추가공제'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        fc(ws,r2,1,addtlCell,item.credit,nf);
+        dc(ws,r2,0,c.role+' 추가공제'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        fc(ws,r2,1,addtlCell,c.addtl,nf);
         stripe(ws,r2,2,even); r2++;
 
-        dc(ws,r2,0,item.role+' 당기−추징'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        fc(ws,r2,1,dAmt+'-'+chugCell,danggi.total-item.chugjing,nf);
+        dc(ws,r2,0,c.role+' 당기\u2212추징'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        fc(ws,r2,1,dAmt+'-'+chugCell,c.expected,nf);
         const expCell='B'+r2;
         stripe(ws,r2,2,!even); r2++;
 
-        const c=v.checks[idx];
-        dc(ws,r2,0,item.role+' 결과'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        const rF='IF(ABS('+addtlCell+'-'+expCell+')<5000,"\u2713 일치","\u2717 불일치 ("&TEXT('+addtlCell+'-'+expCell+',"#,##0")&"원)")';
+        dc(ws,r2,0,c.role+' 결과'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
+        const rF='IF(ABS('+addtlCell+'-'+expCell+')<5000,"\u2713 일치","\u2717 불일치 ("&TEXT('+addtlCell+'-'+expCell+',"#,##0")&"\uc6d0)")';
         const rc=fc(ws,r2,1,rF,c.match?'\u2713 일치':'\u2717 불일치');
         rc.font=Fn(9,true,c.match?C.pri:C.red);
         stripe(ws,r2,2,even); r2++;
