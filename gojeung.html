@@ -3039,7 +3039,7 @@ function calcTimeline(startY) {
     const cy = startY+i;
 
     const wC=getW(startY, cy);
-    const addtl=calcAddtl(corp, danggi.inc, wC, wPrev, wDanggi, startY);
+    const addtl=calcAddtl(corp, danggi.inc, wC, wDanggi, wDanggi, startY);
     const credit=addtl.total;
     let sahu, chugjing=0, limit=0, mult=1, prevChug=0;
 
@@ -3743,7 +3743,7 @@ window.calcExportExcel = async function() {
         }
       } else if(item.addtl){
         // 추가공제: youthDec 여부에 따라 수식 다름
-        const wC=wRowMap[item.role], wP=wRowMap['전기'];
+        const wC=wRowMap[item.role], wP=wRowMap['당기'];
         if(yDec){
           // 청년감소 시: INT(당기inc × MIN(1, 전체유지/당기총증가)*100)/100 (비례 스케일 + truncW)
           if(isS){

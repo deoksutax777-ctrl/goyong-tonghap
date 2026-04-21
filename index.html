@@ -3025,7 +3025,7 @@ function calc_calcTimeline(startY) {
   for (let i=1; i<maxY; i++) {
     const cy = startY+i;
     const wC=calc_getW(startY, cy);
-    const addtl=calc_calcAddtl(corp, danggi.inc, wC, wPrev, wDanggi);
+    const addtl=calc_calcAddtl(corp, danggi.inc, wC, wDanggi, wDanggi);
     const credit=addtl.total;
     let sahu, chugjing=0, limit=0, mult=1, prevChug=0;
 
@@ -3774,7 +3774,7 @@ async function calc_exportExcel() {
           fc(ws,r2,ci++,'MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,D'+wD+'-D'+wP+'))',calc_rp2(danggi.inc.ym+danggi.inc.yl),nf2);
         }
       } else if(item.addtl){
-        const wC=wRowMap[item.role], wP=wRowMap['전기'];
+        const wC=wRowMap[item.role], wP=wRowMap['당기'];
         if(yDec){
           if(isS){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+'+E'+danggiCalcRow+'+F'+danggiCalcRow+')';
