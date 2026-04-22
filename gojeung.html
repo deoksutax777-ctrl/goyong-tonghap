@@ -3256,11 +3256,18 @@ function calcVerification(tl, danggi, startY) {
       expected = 0;
       for (let k=0;k<4;k++) expected += truncAmt(truncW(danggi.inc[cats[k]]*sc)*nRates[k]*W);
     } else {
-      expected = 0;
-      for (let k=0;k<4;k++) {
-        const dec = Math.max(0, rp2(wDanggi[cats[k]]-wC[cats[k]]));
-        const eff = Math.min(dec, danggi.inc[cats[k]]);
-        expected += danggi.amt[cats[k]] - truncAmt(eff*yRates[k]*W);
+      const tDec = Math.max(0, rp2(totalW(wDanggi)-totalW(wC)));
+      if (tDec > 0) {
+        // 케이스 ③④: 전체 감소 → 카테고리별 차감
+        expected = 0;
+        for (let k=0;k<4;k++) {
+          const dec = Math.max(0, rp2(wDanggi[cats[k]]-wC[cats[k]]));
+          const eff = Math.min(dec, danggi.inc[cats[k]]);
+          expected += danggi.amt[cats[k]] - truncAmt(eff*yRates[k]*W);
+        }
+      } else {
+        // 케이스 ①: 전체 유지 + 청년 유지 → 당기 공제액 전액
+        expected = danggi.total;
       }
     }
 
@@ -4253,18 +4260,24 @@ window.calcExportExcel = async function() {
                 +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNM+'+0.000001)';
           } else { expF='0'; }
         } else {
+          // 전체 감소(③④) → 카테고리별 차감, 전체 유지(①) → 당기 전액
+          const totCol = isS ? 'G' : (hasN ? 'E' : 'D');
+          const tDecF = totCol+wDR+'-'+totCol+wCR; // 전체 감소분
           if(isS){
-            expF=dAmtCell
+            const catDec = dAmtCell
                 +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)'
                 +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refYL+'+0.000001)'
                 +'-INT(MIN(MAX(0,E'+wDR+'-E'+wCR+'),E'+dCR+')*'+refNM+'+0.000001)'
                 +'-INT(MIN(MAX(0,F'+wDR+'-F'+wCR+'),F'+dCR+')*'+refNL+'+0.000001)';
+            expF='IF('+tDecF+'>0,'+catDec+','+dAmtCell+')';
           } else if(hasN){
-            expF=dAmtCell
+            const catDec = dAmtCell
                 +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)'
                 +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refNM+'+0.000001)';
+            expF='IF('+tDecF+'>0,'+catDec+','+dAmtCell+')';
           } else {
-            expF=dAmtCell+'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)';
+            const catDec = dAmtCell+'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)';
+            expF='IF('+tDecF+'>0,'+catDec+','+dAmtCell+')';
           }
         }
 
