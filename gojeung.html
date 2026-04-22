@@ -2730,6 +2730,7 @@ const RATES = {
 };
 
 const HIST_RATES = {
+  2018: { '중소': { metro: 1000, local: 1100 }, '중견': { metro: 700, local: 700 }, '대기업': { metro: 300, local: 300 } },
   2021: { '중소': { local: 1300 }, '중견': { local: 900 }, '대기업': { local: 500 } },
   2022: { '중소': { local: 1300 }, '중견': { local: 900 }, '대기업': { local: 500 } }
 };
@@ -2741,7 +2742,7 @@ function getRates(corp, startY) {
   const hist = HIST_RATES[startY] && HIST_RATES[startY][corp];
   if (!hist) return base;
   return {
-    youth: { metro: base.youth.metro, local: hist.local },
+    youth: { metro: hist.metro || base.youth.metro, local: hist.local || base.youth.local },
     normal: base.normal,
     years: base.years
   };
