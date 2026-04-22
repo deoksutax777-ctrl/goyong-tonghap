@@ -2842,21 +2842,21 @@ function calcDanggi(corp, diff, startY) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi, startY) {
   const r = getRates(corp, startY);
-  const kept = maxZ(diffW(wCheck, wPrev));
+  const dec = maxZ(diffW(wDanggi, wCheck));
   const youthDec = wDanggi && (youthW(wCheck) < youthW(wDanggi));
   let inc, amt;
   if (youthDec) {
     const dTotal = rp2(danggiInc.ym + danggiInc.yl + danggiInc.nm + danggiInc.nl);
-    const totalKept = Math.max(0, rp2(totalW(wCheck) - totalW(wPrev)));
-    const maintained = Math.min(dTotal, totalKept);
+    const totalDec = Math.max(0, rp2(totalW(wDanggi) - totalW(wCheck)));
+    const maintained = Math.max(0, rp2(dTotal - totalDec));
     const scale = dTotal > 0 ? maintained / dTotal : 0;
     inc = { ym: truncW(danggiInc.ym*scale), yl: truncW(danggiInc.yl*scale), nm: truncW(danggiInc.nm*scale), nl: truncW(danggiInc.nl*scale) };
     amt = { ym: truncAmt(inc.ym*r.normal.metro*W), yl: truncAmt(inc.yl*r.normal.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   } else {
-    inc = { ym: truncW(Math.min(danggiInc.ym,kept.ym)), yl: truncW(Math.min(danggiInc.yl,kept.yl)), nm: truncW(Math.min(danggiInc.nm,kept.nm)), nl: truncW(Math.min(danggiInc.nl,kept.nl)) };
+    inc = { ym: truncW(Math.max(0, danggiInc.ym-dec.ym)), yl: truncW(Math.max(0, danggiInc.yl-dec.yl)), nm: truncW(Math.max(0, danggiInc.nm-dec.nm)), nl: truncW(Math.max(0, danggiInc.nl-dec.nl)) };
     amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   }
-  return { kept, inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, youthDec };
+  return { dec, inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, youthDec };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3086,7 +3086,6 @@ function calcVerification(tl, danggi, startY) {
   if (items.length === 0) return null;
 
   const wDanggi = getW(startY, startY);
-  const wPrev = getW(startY, startY-1);
   const r = getRates(getCorp(), startY);
   const cats = ['ym','yl','nm','nl'];
   const yRates = [r.youth.metro, r.youth.local, r.normal.metro, r.normal.local];
@@ -3101,8 +3100,9 @@ function calcVerification(tl, danggi, startY) {
 
     if (yd) {
       const dTotal = rp2(danggi.inc.ym+danggi.inc.yl+danggi.inc.nm+danggi.inc.nl);
-      const totalKept = Math.max(0, rp2(totalW(wC)-totalW(wPrev)));
-      const sc = dTotal > 0 ? Math.min(dTotal,totalKept)/dTotal : 0;
+      const totalDec = Math.max(0, rp2(totalW(wDanggi)-totalW(wC)));
+      const maintained = Math.max(0, rp2(dTotal-totalDec));
+      const sc = dTotal > 0 ? maintained/dTotal : 0;
       expected = 0;
       for (let k=0;k<4;k++) expected += truncAmt(truncW(danggi.inc[cats[k]]*sc)*nRates[k]*W);
     } else {
@@ -3114,7 +3114,7 @@ function calcVerification(tl, danggi, startY) {
       }
     }
 
-    const match = Math.abs(item.credit - expected) < 5000;
+    const match = item.credit === expected;
     if (!match) allMatch = false;
     checks.push({ year: item.year, role: item.role, addtl: item.credit, expected, match, youthDec: yd });
   }
@@ -3742,39 +3742,45 @@ window.calcExportExcel = async function() {
           fc(ws,r2,ci++,'MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,D'+wD+'-D'+wP+'))',rp2(danggi.inc.ym+danggi.inc.yl),nf2);
         }
       } else if(item.addtl){
-        // 추가공제: youthDec 여부에 따라 수식 다름
+        // 추가공제: 당기 기준(조특법 29조의7). 당기 대비 감소분을 당기증가 한도로 차감.
         const wC=wRowMap[item.role], wP=wRowMap['당기'];
         if(yDec){
-          // 청년감소 시: INT(당기inc × MIN(1, 전체유지/당기총증가)*100)/100 (비례 스케일 + truncW)
+          // 청년감소: INT(당기inc × MAX(0, 1 − 당기총감소/당기총증가) × 100)/100
           if(isS){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+'+E'+danggiCalcRow+'+F'+danggiCalcRow+')';
-            const kept='MAX(0,G'+wC+'-G'+wP+')';
-            const scl='MIN(1,IF('+dSum+'=0,0,'+kept+'/'+dSum+'))';
+            const tDec='MAX(0,ROUND(G'+wP+'-G'+wC+',2))';
+            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
+            const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
             fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.ym,nf2);
             fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.yl,nf2);
             fc(ws,r2,ci++,'INT(ROUND(E'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.nm,nf2);
             fc(ws,r2,ci++,'INT(ROUND(F'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.nl,nf2);
           } else if(hasN){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+')';
-            const kept='MAX(0,E'+wC+'-E'+wP+')';
-            const scl='MIN(1,IF('+dSum+'=0,0,'+kept+'/'+dSum+'))';
+            const tDec='MAX(0,ROUND(E'+wP+'-E'+wC+',2))';
+            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
+            const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
             fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
             fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*MIN(1,IF(C'+danggiCalcRow+'=0,0,MAX(0,D'+wC+'-D'+wP+')/C'+danggiCalcRow+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            const dSum='C'+danggiCalcRow;
+            const tDec='MAX(0,ROUND(D'+wP+'-D'+wC+',2))';
+            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
+            const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
+            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         } else {
-          // 정상 유지: INT(MIN(당기증감, MAX(0, 해당연도-전기))*100)/100
+          // 정상유지/부분감소: INT(MAX(0, 당기증가 − 당기대비감소)×100)/100
           if(isS){
-            fc(ws,r2,ci++,'INT(ROUND(MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+')),2)*100)/100',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+')),2)*100)/100',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MIN(E'+danggiCalcRow+',MAX(0,E'+wC+'-E'+wP+')),2)*100)/100',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MIN(F'+danggiCalcRow+',MAX(0,F'+wC+'-F'+wP+')),2)*100)/100',item.addtl.inc.nl,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100)/100',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100)/100',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,E'+danggiCalcRow+'-MAX(0,E'+wP+'-E'+wC+')),2)*100)/100',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,F'+danggiCalcRow+'-MAX(0,F'+wP+'-F'+wC+')),2)*100)/100',item.addtl.inc.nl,nf2);
           } else if(hasN){
-            fc(ws,r2,ci++,'INT(ROUND(MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MIN(D'+danggiCalcRow+',MAX(0,D'+wC+'-D'+wP+')),2)*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
-            fc(ws,r2,ci++,'INT(ROUND(MIN(C'+danggiCalcRow+',MAX(0,C'+wC+'-C'+wP+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         }
       }
@@ -4018,13 +4024,50 @@ window.calcExportExcel = async function() {
         fc(ws,r2,1,addtlCell,c.addtl,nf);
         stripe(ws,r2,2,even); r2++;
 
+        const wDR=wRowMap['당기'], wCR=wRowMap[c.role], dCR=danggiCalcRow;
+        const dAmtCell=L(amtCI)+dCR;
+        let expF;
+        if(c.youthDec){
+          if(isS){
+            const dSum='(C'+dCR+'+D'+dCR+'+E'+dCR+'+F'+dCR+')';
+            const tDec='MAX(0,ROUND(G'+wDR+'-G'+wCR+',2))';
+            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
+            const sc='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
+            expF='INT((INT(ROUND(C'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')'
+                +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100)/100)*'+refNL+')'
+                +'+INT((INT(ROUND(E'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')'
+                +'+INT((INT(ROUND(F'+dCR+'*'+sc+',2)*100)/100)*'+refNL+')';
+          } else if(hasN){
+            const dSum='(C'+dCR+'+D'+dCR+')';
+            const tDec='MAX(0,ROUND(E'+wDR+'-E'+wCR+',2))';
+            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
+            const sc='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
+            expF='INT((INT(ROUND(C'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')'
+                +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')';
+          } else { expF='0'; }
+        } else {
+          if(isS){
+            expF=dAmtCell
+                +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+')'
+                +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refYL+')'
+                +'-INT(MIN(MAX(0,E'+wDR+'-E'+wCR+'),E'+dCR+')*'+refNM+')'
+                +'-INT(MIN(MAX(0,F'+wDR+'-F'+wCR+'),F'+dCR+')*'+refNL+')';
+          } else if(hasN){
+            expF=dAmtCell
+                +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+')'
+                +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refNM+')';
+          } else {
+            expF=dAmtCell+'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+')';
+          }
+        }
+
         dc(ws,r2,0,c.role+' 기대'+(c.youthDec?' (비청년단가)':'')); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        dc(ws,r2,1,c.expected,nf);
+        fc(ws,r2,1,expF,c.expected,nf);
         const expCell='B'+r2;
         stripe(ws,r2,2,!even); r2++;
 
         dc(ws,r2,0,c.role+' 결과'); ws.getCell('A'+r2).font=Fn(9,false,C.muted);
-        const rF='IF(ABS('+addtlCell+'-'+expCell+')<5000,"\u2713 일치","\u2717 불일치 ("&TEXT('+addtlCell+'-'+expCell+',"#,##0")&"\uc6d0)")';
+        const rF='IF('+addtlCell+'='+expCell+',"\u2713 일치","\u2717 불일치 ("&TEXT('+addtlCell+'-'+expCell+',"#,##0")&"\uc6d0)")';
         const rc=fc(ws,r2,1,rF,c.match?'\u2713 일치':'\u2717 불일치');
         rc.font=Fn(9,true,c.match?C.pri:C.red);
         stripe(ws,r2,2,even); r2++;
