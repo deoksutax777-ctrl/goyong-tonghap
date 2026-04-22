@@ -2805,22 +2805,59 @@ function maxZ(w) { return { ym: Math.max(0,w.ym), yl: Math.max(0,w.yl), nm: Math
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calcDanggi(corp, diff, startY) {
   const r = getRates(corp, startY);
-  // ① 지역별 cap (수도권/비수도권 각각, 청년 우선)
+  const isS = (corp==='중소'), hasN = (corp!=='대기업');
+  const notes = [];
+  const catName = {ym:'청년(수도권)',yl:'청년(비수도권)',nm:'비청년(수도권)',nl:'비청년(비수도권)'};
+  const catNameShort = {ym:'청년(수)',yl:'청년(비)',nm:'비청년(수)',nl:'비청년(비)'};
+
+  // ① 개별 증감
+  const rawYm = Math.max(0, diff.ym), rawNm = Math.max(0, diff.nm);
+  const rawYl = Math.max(0, diff.yl), rawNl = Math.max(0, diff.nl);
+
+  // 감소 카테고리 식별
+  const decCats = [];
+  if(diff.ym<0) decCats.push(catName.ym+' '+fmtD(Math.abs(diff.ym))+'명↓');
+  if(diff.yl<0) decCats.push(catName.yl+' '+fmtD(Math.abs(diff.yl))+'명↓');
+  if(diff.nm<0) decCats.push(catName.nm+' '+fmtD(Math.abs(diff.nm))+'명↓');
+  if(diff.nl<0) decCats.push(catName.nl+' '+fmtD(Math.abs(diff.nl))+'명↓');
+  const incCats = [];
+  if(diff.ym>0) incCats.push(catName.ym+' +'+fmtD(diff.ym)+'명');
+  if(diff.yl>0) incCats.push(catName.yl+' +'+fmtD(diff.yl)+'명');
+  if(diff.nm>0) incCats.push(catName.nm+' +'+fmtD(diff.nm)+'명');
+  if(diff.nl>0) incCats.push(catName.nl+' +'+fmtD(diff.nl)+'명');
+
+  if(incCats.length>0) notes.push('① 개별 증감: '+incCats.join(', ')+(decCats.length>0?' / '+decCats.join(', '):''));
+  else notes.push('① 개별 증감: 증가 없음 (전 카테고리 감소 또는 변동 없음)');
+
+  // ② 지역별 cap
   const metroDiff = diff.ym + diff.nm;
   const localDiff = diff.yl + diff.nl;
   const metroCap = Math.max(0, metroDiff);
   const localCap = Math.max(0, localDiff);
-  const rawYm = Math.max(0, diff.ym), rawNm = Math.max(0, diff.nm);
-  const rawYl = Math.max(0, diff.yl), rawNl = Math.max(0, diff.nl);
   let capYm = Math.min(rawYm, metroCap);
   let capNm = Math.min(rawNm, metroCap - capYm);
   let capYl = Math.min(rawYl, localCap);
   let capNl = Math.min(rawNl, localCap - capYl);
-  // ② 전체 상시근로자 증가분 최종 cap (공제단가 큰 순서로 배정)
+
+  const regionBefore = rp2(rawYm+rawYl+rawNm+rawNl);
+  const regionAfter = rp2(capYm+capYl+capNm+capNl);
+  if(regionAfter < regionBefore) {
+    const regionNotes = [];
+    if(metroDiff<0) regionNotes.push('수도권 전체 '+fmtD(Math.abs(metroDiff))+'명 감소 → 수도권 증가분 한도 적용');
+    else if(metroCap < rawYm+rawNm) regionNotes.push('수도권 순증 '+fmtD(metroCap)+'명 한도 적용 (청년 우선 배정)');
+    if(localDiff<0) regionNotes.push('비수도권 전체 '+fmtD(Math.abs(localDiff))+'명 감소 → 비수도권 증가분 한도 적용');
+    else if(localCap < rawYl+rawNl) regionNotes.push('비수도권 순증 '+fmtD(localCap)+'명 한도 적용 (청년 우선 배정)');
+    notes.push('② 지역별 한도: '+regionNotes.join(' / '));
+  } else {
+    notes.push('② 지역별 한도: 제한 없음 (수도권 순증 '+fmtD(metroCap)+'명, 비수도권 순증 '+fmtD(localCap)+'명)');
+  }
+
+  // ③ 전체 cap
   const totalCap = Math.max(0, metroDiff + localDiff);
   const regionSum = rp2(capYm + capYl + capNm + capNl);
+  let totalCapApplied = false;
   if (regionSum > totalCap && regionSum > 0) {
-    // 단가순: 청년지방(local) > 청년수도(metro) > 비청년지방 > 비청년수도
+    totalCapApplied = true;
     const order = [
       { key:'yl', val:capYl, rate:r.youth.local },
       { key:'ym', val:capYm, rate:r.youth.metro },
@@ -2831,10 +2868,34 @@ function calcDanggi(corp, diff, startY) {
     const result = {};
     order.forEach(o => { result[o.key] = rp2(Math.min(o.val, remain)); remain = rp2(remain - result[o.key]); });
     capYm = result.ym; capYl = result.yl; capNm = result.nm; capNl = result.nl;
+    const orderDesc = order.filter(o=>o.val>0).map(o=>catNameShort[o.key]).join(' > ');
+    notes.push('③ 전체 한도: 전체 상시근로자 순증 '+fmtD(totalCap)+'명 한도에 걸림 → 단가순('+orderDesc+') 배정');
+  } else {
+    notes.push('③ 전체 한도: 제한 없음 (전체 순증 '+fmtD(totalCap)+'명 ≥ 카테고리 합계 '+fmtD(regionSum)+'명)');
   }
+
   const inc = { ym: truncW(capYm), yl: truncW(capYl), nm: truncW(capNm), nl: truncW(capNl) };
   const amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
-  return { inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl };
+
+  // 최종 요약
+  const finalParts = [];
+  if(isS){
+    if(inc.ym>0) finalParts.push(catName.ym+' '+fmtD(inc.ym)+'명');
+    if(inc.yl>0) finalParts.push(catName.yl+' '+fmtD(inc.yl)+'명');
+    if(inc.nm>0) finalParts.push(catName.nm+' '+fmtD(inc.nm)+'명');
+    if(inc.nl>0) finalParts.push(catName.nl+' '+fmtD(inc.nl)+'명');
+  } else if(hasN){
+    const yI=rp2(inc.ym+inc.yl), nI=rp2(inc.nm+inc.nl);
+    if(yI>0) finalParts.push('청년 '+fmtD(yI)+'명');
+    if(nI>0) finalParts.push('비청년 '+fmtD(nI)+'명');
+  } else {
+    const yI=rp2(inc.ym+inc.yl);
+    if(yI>0) finalParts.push('청년 '+fmtD(yI)+'명');
+  }
+  if(finalParts.length>0) notes.push('→ 최종 공제 인원: '+finalParts.join(', ')+' = 공제액 '+fmt(amt.ym+amt.yl+amt.nm+amt.nl)+'원');
+  else notes.push('→ 최종 공제 인원: 없음 (증가분 0)');
+
+  return { inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, notes };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2842,21 +2903,61 @@ function calcDanggi(corp, diff, startY) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi, startY) {
   const r = getRates(corp, startY);
+  const isS = (corp==='중소'), hasN = (corp!=='대기업');
   const dec = maxZ(diffW(wDanggi, wCheck));
   const youthDec = wDanggi && (youthW(wCheck) < youthW(wDanggi));
+  const notes = [];
+  const catName = {ym:'청년(수도권)',yl:'청년(비수도권)',nm:'비청년(수도권)',nl:'비청년(비수도권)'};
   let inc, amt;
+
+  const wDTotal = totalW(wDanggi), wCTotal = totalW(wCheck);
+  const wDYouth = youthW(wDanggi), wCYouth = youthW(wCheck);
+
   if (youthDec) {
     const dTotal = rp2(danggiInc.ym + danggiInc.yl + danggiInc.nm + danggiInc.nl);
-    const totalDec = Math.max(0, rp2(totalW(wDanggi) - totalW(wCheck)));
+    const totalDec = Math.max(0, rp2(wDTotal - wCTotal));
     const maintained = Math.max(0, rp2(dTotal - totalDec));
     const scale = dTotal > 0 ? maintained / dTotal : 0;
+    notes.push('청년등 인원 감소 발생: 당기 청년등 '+fmtD(wDYouth)+'명 → 해당연도 '+fmtD(wCYouth)+'명 ('+fmtD(rp2(wDYouth-wCYouth))+'명↓)');
+    if(totalDec>0) notes.push('전체 상시근로자도 감소: 당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명 ('+fmtD(totalDec)+'명↓)');
+    notes.push('→ 비청년 단가 적용, 유지비율 '+fmtD(rp2(maintained))+'/'+fmtD(dTotal)+' = '+(scale*100).toFixed(1)+'%');
     inc = { ym: truncW(danggiInc.ym*scale), yl: truncW(danggiInc.yl*scale), nm: truncW(danggiInc.nm*scale), nl: truncW(danggiInc.nl*scale) };
     amt = { ym: truncAmt(inc.ym*r.normal.metro*W), yl: truncAmt(inc.yl*r.normal.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   } else {
+    const totalDec = rp2(wDTotal - wCTotal);
+    if(totalDec > 0) {
+      notes.push('전체 상시근로자 감소: 당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명 ('+fmtD(totalDec)+'명↓, 청년등은 유지)');
+      const decParts = [];
+      if(dec.ym>0) decParts.push(catName.ym+' '+fmtD(dec.ym)+'명↓');
+      if(dec.yl>0) decParts.push(catName.yl+' '+fmtD(dec.yl)+'명↓');
+      if(dec.nm>0) decParts.push(catName.nm+' '+fmtD(dec.nm)+'명↓');
+      if(dec.nl>0) decParts.push(catName.nl+' '+fmtD(dec.nl)+'명↓');
+      if(decParts.length>0) notes.push('카테고리별 감소: '+decParts.join(', ')+' → 당기 증가 인원에서 차감');
+    } else {
+      notes.push('상시근로자 수 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
+    }
     inc = { ym: truncW(Math.max(0, danggiInc.ym-dec.ym)), yl: truncW(Math.max(0, danggiInc.yl-dec.yl)), nm: truncW(Math.max(0, danggiInc.nm-dec.nm)), nl: truncW(Math.max(0, danggiInc.nl-dec.nl)) };
     amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   }
-  return { dec, inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, youthDec };
+
+  const finalParts = [];
+  if(isS){
+    if(inc.ym>0) finalParts.push(catName.ym+' '+fmtD(inc.ym)+'명');
+    if(inc.yl>0) finalParts.push(catName.yl+' '+fmtD(inc.yl)+'명');
+    if(inc.nm>0) finalParts.push(catName.nm+' '+fmtD(inc.nm)+'명');
+    if(inc.nl>0) finalParts.push(catName.nl+' '+fmtD(inc.nl)+'명');
+  } else if(hasN){
+    const yI=rp2(inc.ym+inc.yl), nI=rp2(inc.nm+inc.nl);
+    if(yI>0) finalParts.push('청년 '+fmtD(yI)+'명');
+    if(nI>0) finalParts.push('비청년 '+fmtD(nI)+'명');
+  } else {
+    const yI=rp2(inc.ym+inc.yl);
+    if(yI>0) finalParts.push('청년 '+fmtD(yI)+'명');
+  }
+  if(finalParts.length>0) notes.push('→ 추가공제 인원: '+finalParts.join(', ')+' = '+fmt(amt.ym+amt.yl+amt.nm+amt.nl)+'원');
+  else notes.push('→ 추가공제 인원: 없음 (전액 차감)');
+
+  return { dec, inc, amt, total: amt.ym+amt.yl+amt.nm+amt.nl, youthDec, notes };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2869,13 +2970,29 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
   const nDec = Math.max(0, rp2(rp2(totalW(wD)-youthW(wD))-rp2(totalW(wC)-youthW(wC))));
   const tDec = Math.max(0, rp2(totalW(wD)-totalW(wC)));
   const yInc = rp2(dInc.ym + dInc.yl);
+  const notes = [];
 
   let type = 'ok';
   if (tDec>0 && yDec>=tDec) type='case_a';
   else if (tDec>0) type='case_b';
   else if (yDec>0) type='youth_only';
 
-  if (type==='ok') return { type, raw:0, yDec:0, tDec:0 };
+  if (type==='ok') {
+    notes.push('사후관리: 정상 — 당기 대비 상시근로자 수 감소 없음');
+    return { type, raw:0, yDec:0, tDec:0, notes };
+  }
+
+  // 상황 설명
+  if(type==='youth_only') {
+    notes.push('사후관리 [나. 청년등만 감소]: 전체 상시근로자는 유지되었으나 청년등 '+fmtD(yDec)+'명 감소');
+    notes.push('→ 청년 단가와 비청년 단가의 차액분만 추징 대상');
+  } else if(type==='case_a') {
+    notes.push('사후관리 [가.㉠ 전체감소≤청년감소]: 전체 '+fmtD(tDec)+'명 감소, 청년등 '+fmtD(yDec)+'명 감소 (청년감소≥전체감소)');
+    notes.push('→ 전체감소분은 청년 전액 단가 추징, 나머지 청년감소분은 단가 차액만 추징');
+  } else {
+    notes.push('사후관리 [가.㉡ 전체감소>청년감소]: 전체 '+fmtD(tDec)+'명 감소, 청년등 '+fmtD(yDec)+'명 / 비청년등 '+fmtD(nDec)+'명 감소');
+    notes.push('→ 각 카테고리 감소분×해당 단가로 추징액 산출');
+  }
 
   let raw = 0;
 
@@ -2895,7 +3012,6 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
     const nlDec = Math.max(0, rp2(wD.nl-wC.nl));
 
     if (type==='youth_only') {
-      // 지역별 감소를 당기 증가 인원으로 cap
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
       raw = effYm*(r.youth.metro-r.normal.metro)
@@ -2903,7 +3019,6 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
     } else if (type==='case_a') {
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
-      // 전체감소 중 지역별 배분: 수도권/비수도권 각각의 전체 감소
       const mTotDec = Math.max(0, rp2((wD.ym+wD.nm)-(wC.ym+wC.nm)));
       const lTotDec = Math.max(0, rp2((wD.yl+wD.nl)-(wC.yl+wC.nl)));
       const exitM = Math.min(effYm, mTotDec);
@@ -2915,7 +3030,6 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
       raw += exitM*r.youth.metro
            + exitL*r.youth.local;
     } else {
-      // case_b: 지역별 감소를 당기 증가 인원으로 cap
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
       const effNm = Math.min(nmDec, dInc.nm);
@@ -2926,7 +3040,8 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
   }
 
   raw = truncAmt(raw * mult * W);
-  return { type, raw, yDec, tDec };
+  notes.push('→ 추징 산출액: '+fmt(raw)+'원'+(mult>1?' ('+mult+'년분)':''));
+  return { type, raw, yDec, tDec, notes };
 }
 
 function sahuBadge(type) {
@@ -3047,6 +3162,10 @@ function calcTimeline(startY) {
       mult=1; limit=danggi.total;
       sahu=sahuCheck(corp, wDanggi, wC, danggi.inc, mult, startY);
       chugjing=truncAmt(Math.min(sahu.raw, limit));
+      if(sahu.type!=='ok' && sahu.notes){
+        sahu.notes.push('추징 한도: 당기 공제액 '+fmt(limit)+'원');
+        sahu.notes.push('→ 최종 추징액: MIN('+fmt(sahu.raw)+', '+fmt(limit)+') = '+fmt(chugjing)+'원');
+      }
     } else if (i===2) {
       const p=tl[tl.length-1];
       const cnt=(danggi.total>0?1:0)+((p.hasData&&p.credit>0)?1:0);
@@ -3054,6 +3173,10 @@ function calcTimeline(startY) {
       prevChug=p.hasData?p.chugjing:0;
       sahu=sahuCheck(corp, wDanggi, wC, danggi.inc, mult, startY);
       chugjing=truncAmt(Math.min(Math.max(0, sahu.raw-prevChug), Math.max(0, limit-prevChug)));
+      if(sahu.type!=='ok' && sahu.notes){
+        sahu.notes.push('추징 한도: 당기+1차 공제액 합계 '+fmt(limit)+'원'+(prevChug>0?', 기추징 '+fmt(prevChug)+'원':''));
+        sahu.notes.push('→ 최종 추징액: MIN(MAX(0,'+fmt(sahu.raw)+'-'+fmt(prevChug)+'), MAX(0,'+fmt(limit)+'-'+fmt(prevChug)+')) = '+fmt(chugjing)+'원');
+      }
     }
 
     tl.push({ year:cy, role:i+'차 추가', credit, chugjing, sahu, hasData:true, addtl, idx:i, limit, mult, prevChug });
@@ -3251,6 +3374,23 @@ function renderTimelines(all) {
         }
         h += '<br>';
       });
+
+      // 해설
+      h += '<div style="margin-top:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">';
+      h += '<div class="f-title" style="margin-bottom:6px;">계산 해설</div>';
+      h += '<div style="font-size:11px;line-height:1.7;color:var(--text-muted);">';
+      h += `<div style="font-weight:600;color:var(--text);margin-bottom:2px;">【 당기 공제 (${startY}년) 】</div>`;
+      if(danggi.notes) danggi.notes.forEach(n => { h += n+'<br>'; });
+      tl.forEach(item => {
+        if(!item.hasData || item.role==='전기' || item.role==='당기') return;
+        h += `<div style="font-weight:600;color:var(--text);margin-top:6px;">【 ${item.role} (${item.year}년) 】</div>`;
+        if(item.addtl && item.addtl.notes) item.addtl.notes.forEach(n => { h += n+'<br>'; });
+        if(item.sahu && item.sahu.notes) item.sahu.notes.forEach(n => {
+          const style = item.sahu.type!=='ok' ? 'color:var(--warn);' : '';
+          h += `<span style="${style}">${n}</span><br>`;
+        });
+      });
+      h += '</div></div>';
 
       // 검증
       const v = calcVerification(tl, danggi, startY);
@@ -4006,6 +4146,46 @@ window.calcExportExcel = async function() {
       r2++;
     });
     r2++;
+
+    // ── 해설 (자연어 설명) ──
+    {
+      const noteColor = 'FF3A5A80';
+      const noteBg = 'FFF8FAFC';
+      const noteSectionBg = 'FF2A4A70';
+      function noteSection(title) {
+        ws.mergeCells('A'+r2+':'+L(maxCol-1)+r2);
+        ws.getCell('A'+r2).value=title; ws.getCell('A'+r2).font=Fn(10,true,C.white);
+        ws.getCell('A'+r2).fill=fl(noteSectionBg); ws.getCell('A'+r2).border=bd;
+        for(let j=1;j<maxCol;j++){ws.getCell(L(j)+r2).fill=fl(noteSectionBg);ws.getCell(L(j)+r2).border=bd;}
+        r2++;
+      }
+      function noteLine(text, opts) {
+        ws.mergeCells('A'+r2+':'+L(maxCol-1)+r2);
+        const c=ws.getCell('A'+r2);
+        c.value='  '+text;
+        c.font=Fn(9,!!(opts&&opts.bold), (opts&&opts.color)||noteColor);
+        c.fill=fl(noteBg); c.border=bd;
+        c.alignment={vertical:'middle',wrapText:true};
+        for(let j=1;j<maxCol;j++){ws.getCell(L(j)+r2).fill=fl(noteBg);ws.getCell(L(j)+r2).border=bd;}
+        r2++;
+      }
+
+      noteSection('계산 해설');
+
+      // 당기 해설
+      noteLine('【 당기 공제 ('+startY+'년) 】', {bold:true, color:C.black});
+      if(danggi.notes) danggi.notes.forEach(n => noteLine(n));
+      r2++;
+
+      // 추가공제 해설
+      tl.forEach(item => {
+        if(!item.hasData || item.role==='전기' || item.role==='당기') return;
+        noteLine('【 '+item.role+' ('+item.year+'년) 】', {bold:true, color:C.black});
+        if(item.addtl && item.addtl.notes) item.addtl.notes.forEach(n => noteLine(n));
+        if(item.sahu && item.sahu.notes) item.sahu.notes.forEach(n => noteLine(n, item.sahu.type!=='ok'?{color:C.red}:{}));
+        r2++;
+      });
+    }
 
     const v=calcVerification(tl,danggi,startY);
     if(v){
