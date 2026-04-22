@@ -2925,17 +2925,36 @@ function calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi, startY) {
     amt = { ym: truncAmt(inc.ym*r.normal.metro*W), yl: truncAmt(inc.yl*r.normal.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   } else {
     const totalDec = rp2(wDTotal - wCTotal);
+    const hasCatDec = (dec.ym>0 || dec.yl>0 || dec.nm>0 || dec.nl>0);
+
     if(totalDec > 0) {
       notes.push('전체 상시근로자 감소: 당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명 ('+fmtD(totalDec)+'명↓, 청년등은 유지)');
-      const decParts = [];
-      if(dec.ym>0) decParts.push(catName.ym+' '+fmtD(dec.ym)+'명↓');
-      if(dec.yl>0) decParts.push(catName.yl+' '+fmtD(dec.yl)+'명↓');
-      if(dec.nm>0) decParts.push(catName.nm+' '+fmtD(dec.nm)+'명↓');
-      if(dec.nl>0) decParts.push(catName.nl+' '+fmtD(dec.nl)+'명↓');
-      if(decParts.length>0) notes.push('카테고리별 감소: '+decParts.join(', ')+' → 당기 증가 인원에서 차감');
+    } else if(hasCatDec) {
+      notes.push('전체 상시근로자 수는 유지 (당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명), 그러나 카테고리별 변동 있음');
     } else {
-      notes.push('상시근로자 수 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
+      notes.push('전 카테고리 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
     }
+
+    if(hasCatDec) {
+      const cats = ['ym','yl','nm','nl'];
+      cats.forEach(k => {
+        if(dec[k] > 0) {
+          const capped = Math.min(dec[k], danggiInc[k]);
+          const remain = truncW(Math.max(0, danggiInc[k] - dec[k]));
+          if(danggiInc[k] <= 0) return;
+          if(remain <= 0) {
+            notes.push('  '+catName[k]+': 당기 대비 '+fmtD(dec[k])+'명 감소 → 당기 증가분 '+fmtD(danggiInc[k])+'명 전액 차감 (공제 0)');
+          } else {
+            notes.push('  '+catName[k]+': 당기 대비 '+fmtD(dec[k])+'명 감소 → 당기 증가분 '+fmtD(danggiInc[k])+'명에서 차감, 잔여 '+fmtD(remain)+'��� 공제');
+          }
+        }
+      });
+      const noDec = cats.filter(k => dec[k]===0 && danggiInc[k]>0);
+      if(noDec.length>0) {
+        notes.push('  '+noDec.map(k=>catName[k]+' '+fmtD(danggiInc[k])+'명').join(', ')+': 감소 없어 전액 유지');
+      }
+    }
+
     inc = { ym: truncW(Math.max(0, danggiInc.ym-dec.ym)), yl: truncW(Math.max(0, danggiInc.yl-dec.yl)), nm: truncW(Math.max(0, danggiInc.nm-dec.nm)), nl: truncW(Math.max(0, danggiInc.nl-dec.nl)) };
     amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   }
