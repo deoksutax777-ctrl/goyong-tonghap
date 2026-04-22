@@ -3684,7 +3684,7 @@ window.calcExportExcel = async function() {
 
     // ── 증감 인원: 당기 시작연도가 명세서 당기연도와 같으면 수식 ──
     const canFormula = hasSpec && (startY === specTaxY);
-    const ia = (cell,rate) => 'INT('+cell+'*'+rate+')'; // 공제액 수식 헬퍼
+    const ia = (cell,rate) => 'INT('+cell+'*'+rate+'+0.000001)'; // 공제액 수식 헬퍼 (부동소수점 보정)
     let dIdx=0;
     let danggiCalcRow = null;
     const calcRowMap = {};
@@ -3720,8 +3720,8 @@ window.calcExportExcel = async function() {
           const lC='(D'+wD+'+F'+wD+')-(D'+wP+'+F'+wP+')'; // 비수도권 증감
           const tC='G'+wD+'-G'+wP; // 전체 증감
           // 단가순 배정: D(yl,1200) → C(ym,1100) → F(nl,770) → E(nm,700)
-          // INT(ROUND(x,2)*100)/100 = truncW (rp2 후 절사, JS와 동일)
-          const tw = f => 'INT(ROUND('+f+',2)*100)/100';
+          // INT(ROUND(x,2)*100+0.000000001)/100 = truncW (rp2 후 절사, JS와 동일)
+          const tw = f => 'INT(ROUND('+f+',2)*100+0.000000001)/100';
           // D(yl): MIN(개별, 비수도권한도, 전체한도)
           const ylF=tw('MIN(MAX(0,D'+wD+'-D'+wP+'),MAX(0,'+lC+'),MAX(0,'+tC+'))');
           // C(ym): MIN(개별, 수도권한도, 전체잔여=전체-yl)
@@ -3751,36 +3751,36 @@ window.calcExportExcel = async function() {
             const tDec='MAX(0,ROUND(G'+wP+'-G'+wC+',2))';
             const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
             const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(E'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(F'+danggiCalcRow+'*'+scl+',2)*100)/100',item.addtl.inc.nl,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(E'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(F'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.nl,nf2);
           } else if(hasN){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+')';
             const tDec='MAX(0,ROUND(E'+wP+'-E'+wC+',2))';
             const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
             const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
             const dSum='C'+danggiCalcRow;
             const tDec='MAX(0,ROUND(D'+wP+'-D'+wC+',2))';
             const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
             const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         } else {
           // 정상유지/부분감소: INT(MAX(0, 당기증가 − 당기대비감소)×100)/100
           if(isS){
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100)/100',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100)/100',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,E'+danggiCalcRow+'-MAX(0,E'+wP+'-E'+wC+')),2)*100)/100',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,F'+danggiCalcRow+'-MAX(0,F'+wP+'-F'+wC+')),2)*100)/100',item.addtl.inc.nl,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,E'+danggiCalcRow+'-MAX(0,E'+wP+'-E'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,F'+danggiCalcRow+'-MAX(0,F'+wP+'-F'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.nl,nf2);
           } else if(hasN){
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         }
       }
@@ -3837,7 +3837,7 @@ window.calcExportExcel = async function() {
           const cvM='MAX(0,'+eYm+'-'+exM+')', cvL='MAX(0,'+eYl+'-'+exL+')';
           const ca='ROUND('+cvM+'*('+refYM+'-'+refNM+')+'+cvL+'*('+refYL+'-'+refNL+')+'+exM+'*'+refYM+'+'+exL+'*'+refYL+',2)';
 
-          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+')';
+          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'+0.000001)';
 
           if(item.idx===1){
             chugFormula='MIN('+raw+','+amtL+danggiCalcRow+')';
@@ -3860,7 +3860,7 @@ window.calcExportExcel = async function() {
           const conv='MAX(0,'+eff+'-'+tD+')';
           const ca='ROUND('+conv+'*('+refYM+'-'+refNM+')+'+tD+'*'+refYM+',2)';
 
-          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+')';
+          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'+0.000001)';
 
           if(item.idx===1){
             chugFormula='MIN('+raw+','+amtL+danggiCalcRow+')';
@@ -3882,7 +3882,7 @@ window.calcExportExcel = async function() {
           const cb='ROUND(MIN('+yD+','+tD+')*'+refYM+',2)';
           const ca='ROUND('+conv+'*'+refYM+'+'+tD+'*'+refYM+',2)';
 
-          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+')';
+          const raw='INT(IF('+tD+'>0,IF('+yD+'>='+tD+','+ca+','+cb+'),IF('+yD+'>0,'+yo+',0))*'+multVal+'+0.000001)';
 
           if(item.idx===1){
             chugFormula='MIN('+raw+','+amtL+danggiCalcRow+')';
@@ -4033,31 +4033,31 @@ window.calcExportExcel = async function() {
             const tDec='MAX(0,ROUND(G'+wDR+'-G'+wCR+',2))';
             const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
             const sc='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            expF='INT((INT(ROUND(C'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')'
-                +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100)/100)*'+refNL+')'
-                +'+INT((INT(ROUND(E'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')'
-                +'+INT((INT(ROUND(F'+dCR+'*'+sc+',2)*100)/100)*'+refNL+')';
+            expF='INT((INT(ROUND(C'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNM+'+0.000001)'
+                +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNL+'+0.000001)'
+                +'+INT((INT(ROUND(E'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNM+'+0.000001)'
+                +'+INT((INT(ROUND(F'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNL+'+0.000001)';
           } else if(hasN){
             const dSum='(C'+dCR+'+D'+dCR+')';
             const tDec='MAX(0,ROUND(E'+wDR+'-E'+wCR+',2))';
             const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
             const sc='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            expF='INT((INT(ROUND(C'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')'
-                +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100)/100)*'+refNM+')';
+            expF='INT((INT(ROUND(C'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNM+'+0.000001)'
+                +'+INT((INT(ROUND(D'+dCR+'*'+sc+',2)*100+0.000000001)/100)*'+refNM+'+0.000001)';
           } else { expF='0'; }
         } else {
           if(isS){
             expF=dAmtCell
-                +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+')'
-                +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refYL+')'
-                +'-INT(MIN(MAX(0,E'+wDR+'-E'+wCR+'),E'+dCR+')*'+refNM+')'
-                +'-INT(MIN(MAX(0,F'+wDR+'-F'+wCR+'),F'+dCR+')*'+refNL+')';
+                +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)'
+                +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refYL+'+0.000001)'
+                +'-INT(MIN(MAX(0,E'+wDR+'-E'+wCR+'),E'+dCR+')*'+refNM+'+0.000001)'
+                +'-INT(MIN(MAX(0,F'+wDR+'-F'+wCR+'),F'+dCR+')*'+refNL+'+0.000001)';
           } else if(hasN){
             expF=dAmtCell
-                +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+')'
-                +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refNM+')';
+                +'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)'
+                +'-INT(MIN(MAX(0,D'+wDR+'-D'+wCR+'),D'+dCR+')*'+refNM+'+0.000001)';
           } else {
-            expF=dAmtCell+'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+')';
+            expF=dAmtCell+'-INT(MIN(MAX(0,C'+wDR+'-C'+wCR+'),C'+dCR+')*'+refYM+'+0.000001)';
           }
         }
 
@@ -4713,7 +4713,7 @@ window.sahoeExportExcel = function() {
     // 1인당보험료 = 평균급여 × 요율합계 셀 참조
     yRow.getCell(6).value = { formula: `E${startRow}*${totalRateCell}`, result: r.youth.perPerson };
     // 공제액 = 증가인원 × 1인당보험료 × 공제율
-    yRow.getCell(8).value = { formula: `INT(C${startRow}*F${startRow}*G${startRow})`, result: r.youth.credit };
+    yRow.getCell(8).value = { formula: `INT(C${startRow}*F${startRow}*G${startRow}+0.000001)`, result: r.youth.credit };
     yRow.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
     [4,5,6,8].forEach(i => { yRow.getCell(i).numFmt = numFmt; });
     yRow.getCell(7).numFmt = '0%';
@@ -4726,7 +4726,7 @@ window.sahoeExportExcel = function() {
     ]);
     nRow.getCell(5).value = { formula: `IF(B${nStartRow}>0,D${nStartRow}/B${nStartRow},0)`, result: r.nonYouth.avgPay };
     nRow.getCell(6).value = { formula: `E${nStartRow}*${totalRateCell}`, result: r.nonYouth.perPerson };
-    nRow.getCell(8).value = { formula: `INT(C${nStartRow}*F${nStartRow}*G${nStartRow})`, result: r.nonYouth.credit };
+    nRow.getCell(8).value = { formula: `INT(C${nStartRow}*F${nStartRow}*G${nStartRow}+0.000001)`, result: r.nonYouth.credit };
     nRow.eachCell(c => { c.border = borderThin; c.alignment = {horizontal:'center'}; });
     [4,5,6,8].forEach(i => { nRow.getCell(i).numFmt = numFmt; });
     nRow.getCell(7).numFmt = '0%';
