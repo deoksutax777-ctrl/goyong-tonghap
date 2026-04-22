@@ -2928,35 +2928,34 @@ function calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi, startY) {
     const hasCatDec = (dec.ym>0 || dec.yl>0 || dec.nm>0 || dec.nl>0);
 
     if(totalDec > 0) {
-      notes.push('전체 상시근로자 감소: 당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명 ('+fmtD(totalDec)+'명↓, 청년등은 유지)');
-    } else if(hasCatDec) {
-      notes.push('전체 상시근로자 수는 유지 (당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명), 그러나 카테고리별 변동 있음');
-    } else {
-      notes.push('전 카테고리 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
-    }
-
-    if(hasCatDec) {
-      const cats = ['ym','yl','nm','nl'];
-      cats.forEach(k => {
-        if(dec[k] > 0) {
-          const capped = Math.min(dec[k], danggiInc[k]);
-          const remain = truncW(Math.max(0, danggiInc[k] - dec[k]));
-          if(danggiInc[k] <= 0) return;
-          if(remain <= 0) {
-            notes.push('  '+catName[k]+': 당기 대비 '+fmtD(dec[k])+'명 감소 → 당기 증가분 '+fmtD(danggiInc[k])+'명 전액 차감 (공제 0)');
-          } else {
-            notes.push('  '+catName[k]+': 당기 대비 '+fmtD(dec[k])+'명 감소 → 당기 증가분 '+fmtD(danggiInc[k])+'명에서 차감, 잔여 '+fmtD(remain)+'��� 공제');
+      // 케이스 ③④: 전체 감소 + 청년 유지
+      notes.push('전체 상시근로자 감소: 당기 '+fmtD(wDTotal)+'명 → '+fmtD(wCTotal)+'명 ('+fmtD(totalDec)+'명 감소, 청년등은 유지)');
+      if(hasCatDec) {
+        const cats = ['ym','yl','nm','nl'];
+        cats.forEach(k => {
+          if(dec[k] > 0 && danggiInc[k] > 0) {
+            const remain = truncW(Math.max(0, danggiInc[k] - dec[k]));
+            if(remain <= 0) notes.push('  '+catName[k]+': 당기 대비 '+fmtD(dec[k])+'명 감소 → 당기 증가분 '+fmtD(danggiInc[k])+'명 전액 차감 (공제 0)');
+            else notes.push('  '+catName[k]+': 당기 대비 '+fmtD(dec[k])+'명 감소 → 당기 증가분 '+fmtD(danggiInc[k])+'명에서 차감, 잔여 '+fmtD(remain)+'명 공제');
           }
-        }
-      });
-      const noDec = cats.filter(k => dec[k]===0 && danggiInc[k]>0);
-      if(noDec.length>0) {
-        notes.push('  '+noDec.map(k=>catName[k]+' '+fmtD(danggiInc[k])+'명').join(', ')+': 감소 없어 전액 유지');
+        });
       }
+      inc = { ym: truncW(Math.max(0, danggiInc.ym-dec.ym)), yl: truncW(Math.max(0, danggiInc.yl-dec.yl)), nm: truncW(Math.max(0, danggiInc.nm-dec.nm)), nl: truncW(Math.max(0, danggiInc.nl-dec.nl)) };
+      amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
+    } else {
+      // 케이스 ①: 전체 유지 + 청년 유지 → 당기 공제 인원 전액 유지 (조특법 §29의7 제1항)
+      if(hasCatDec) {
+        const decParts = [];
+        const cats = ['ym','yl','nm','nl'];
+        cats.forEach(k => { if(dec[k]>0) decParts.push(catName[k]+' '+fmtD(dec[k])+'명 감소'); });
+        notes.push('전체 유지 + 청년등 유지 → 당기 공제 인원 전액 유지 (조특법 §29의7 제1항)');
+        notes.push('  참고: '+decParts.join(', ')+'이 있으나, 비청년 단독 감소는 사후관리 대상이 아니므로 추가공제에 영향 없음');
+      } else {
+        notes.push('전 카테고리 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
+      }
+      inc = { ym: danggiInc.ym, yl: danggiInc.yl, nm: danggiInc.nm, nl: danggiInc.nl };
+      amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
     }
-
-    inc = { ym: truncW(Math.max(0, danggiInc.ym-dec.ym)), yl: truncW(Math.max(0, danggiInc.yl-dec.yl)), nm: truncW(Math.max(0, danggiInc.nm-dec.nm)), nl: truncW(Math.max(0, danggiInc.nl-dec.nl)) };
-    amt = { ym: truncAmt(inc.ym*r.youth.metro*W), yl: truncAmt(inc.yl*r.youth.local*W), nm: truncAmt(inc.nm*r.normal.metro*W), nl: truncAmt(inc.nl*r.normal.local*W) };
   }
 
   const finalParts = [];
@@ -3066,10 +3065,19 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
 function sahuBadge(type) {
   switch(type) {
     case 'ok': return '<span class="badge badge-ok">정상</span>';
-    case 'youth_only': return '<span class="badge badge-warn">나.청년감소</span>';
-    case 'case_a': return '<span class="badge badge-danger">가.㉠</span>';
-    case 'case_b': return '<span class="badge badge-danger">가.㉡</span>';
+    case 'youth_only': return '<span class="badge badge-warn">전체유지+청년감소</span>';
+    case 'case_a': return '<span class="badge badge-danger">전체감소(청년≥전체)</span>';
+    case 'case_b': return '<span class="badge badge-danger">전체감소(청년<전체)</span>';
     default: return '';
+  }
+}
+function sahuLabel(type) {
+  switch(type) {
+    case 'ok': return '정상';
+    case 'youth_only': return '전체유지+청년감소 (시행령 §26의7⑤ 나목)';
+    case 'case_a': return '전체감소, 청년감소≥전체감소 (시행령 §26의7⑤ 가목 1))';
+    case 'case_b': return '전체감소, 청년감소<전체감소 (시행령 §26의7⑤ 가목 2))';
+    default: return type;
   }
 }
 
@@ -3385,7 +3393,7 @@ function renderTimelines(all) {
           }
         }
         if (item.sahu && item.sahu.type!=='ok') {
-          h += ` | 사후관리(${item.sahu.type}): 산출<code>${fmt(item.sahu.raw)}원</code>`;
+          h += ` | 사후관리: ${sahuLabel(item.sahu.type)}: 산출<code>${fmt(item.sahu.raw)}원</code>`;
           if (item.prevChug>0) h += `-①<code>${fmt(item.prevChug)}원</code>`;
           h += ` (한도${fmt(item.limit)}원) → 추징<code>${fmt(item.chugjing)}원</code>`;
         } else if (item.sahu) {
@@ -4066,7 +4074,7 @@ window.calcExportExcel = async function() {
 
       let note='';
       if(yDec) note+='청년감소→비청년단가 ';
-      if(item.sahu&&item.sahu.type!=='ok') note+='사후관리('+item.sahu.type+')';
+      if(item.sahu&&item.sahu.type!=='ok') note+='사후관리: '+sahuLabel(item.sahu.type);
       dc(ws,r2,cHdr.length-1,note);
 
       if(item.chugjing>0) for(let j=0;j<cHdr.length;j++) ws.getCell(L(j)+r2).font=Fn(10,false,C.red);
@@ -4151,7 +4159,7 @@ window.calcExportExcel = async function() {
         }
       }
       if(item.sahu && item.sahu.type!=='ok'){
-        desc+=` | 사후관리(${item.sahu.type}): 산출 ${fmt(item.sahu.raw)}원`;
+        desc+=` | 사후관리: ${sahuLabel(item.sahu.type)}: 산출 ${fmt(item.sahu.raw)}원`;
         if(item.prevChug>0) desc+=` - 기추징 ${fmt(item.prevChug)}원`;
         desc+=` (한도 ${fmt(item.limit)}원) → 추징 ${fmt(item.chugjing)}원`;
       } else if(item.sahu){
