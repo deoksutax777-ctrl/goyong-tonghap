@@ -4017,16 +4017,28 @@ window.calcExportExcel = async function() {
             fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         } else {
+          // 정상유지/부분감소: 전체 감소 시에만 per-category cap 적용, 유지 시 danggiInc 그대로
+          const tw = f => 'INT(ROUND('+f+',2)*100+0.000000001)/100';
           if(isS){
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,E'+danggiCalcRow+'-MAX(0,E'+wP+'-E'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,F'+danggiCalcRow+'-MAX(0,F'+wP+'-F'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.nl,nf2);
+            const tDecF='G'+wP+'-G'+wC;
+            const capYm=tw('MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+'))');
+            const capYl=tw('MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+'))');
+            const capNm=tw('MAX(0,E'+danggiCalcRow+'-MAX(0,E'+wP+'-E'+wC+'))');
+            const capNl=tw('MAX(0,F'+danggiCalcRow+'-MAX(0,F'+wP+'-F'+wC+'))');
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capYm+',C'+danggiCalcRow+')',item.addtl.inc.ym,nf2);
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capYl+',D'+danggiCalcRow+')',item.addtl.inc.yl,nf2);
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capNm+',E'+danggiCalcRow+')',item.addtl.inc.nm,nf2);
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capNl+',F'+danggiCalcRow+')',item.addtl.inc.nl,nf2);
           } else if(hasN){
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
+            const tDecF='E'+wP+'-E'+wC;
+            const capY=tw('MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+'))');
+            const capN=tw('MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+'))');
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capY+',C'+danggiCalcRow+')',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capN+',D'+danggiCalcRow+')',rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
           } else {
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+            const tDecF='D'+wP+'-D'+wC;
+            const capY=tw('MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+'))');
+            fc(ws,r2,ci++,'IF('+tDecF+'>0,'+capY+',C'+danggiCalcRow+')',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         }
         }
@@ -4344,7 +4356,13 @@ window.calcExportExcel = async function() {
         const wDR=wRowMap['당기'], wCR=wRowMap[c.role], dCR=danggiCalcRow;
         const dAmtCell=L(amtCI)+dCR;
         let expF;
-        if(c.youthDec){
+        if(c.suspended==='all'){
+          expF='0';
+        } else if(c.suspended==='youth'){
+          if(isS) expF=ia('E'+dCR,refNM)+'+'+ia('F'+dCR,refNL);
+          else if(hasN) expF=ia('D'+dCR,refNM);
+          else expF='0';
+        } else if(c.youthDec){
           if(isS){
             const dSum='(C'+dCR+'+D'+dCR+'+E'+dCR+'+F'+dCR+')';
             const tDec='MAX(0,ROUND(G'+wDR+'-G'+wCR+',2))';
