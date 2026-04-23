@@ -3182,8 +3182,6 @@ function calcTimeline(startY) {
     const cy = startY+i;
 
     const wC=getW(startY, cy);
-    const addtl=calcAddtl(corp, danggi.inc, wC, wDanggi, wDanggi, startY);
-    const credit=addtl.total;
     let sahu, chugjing=0, limit=0, mult=1, prevChug=0;
 
     if (i===1) {
@@ -3205,6 +3203,29 @@ function calcTimeline(startY) {
         sahu.notes.push('추징 한도: 당기+1차 공제액 합계 '+fmt(limit)+'원'+(prevChug>0?', 기추징 '+fmt(prevChug)+'원':''));
         sahu.notes.push('→ 최종 추징액: MIN(MAX(0,'+fmt(sahu.raw)+'-'+fmt(prevChug)+'), MAX(0,'+fmt(limit)+'-'+fmt(prevChug)+')) = '+fmt(chugjing)+'원');
       }
+    }
+
+    // 추가공제 중단 반영 (§29의7 ②)
+    let credit, addtl;
+    const sahuType = sahu ? sahu.type : 'ok';
+    if (sahuType === 'ok') {
+      addtl = calcAddtl(corp, danggi.inc, wC, wDanggi, wDanggi, startY);
+      credit = addtl.total;
+    } else if (sahuType === 'youth_only') {
+      addtl = calcAddtl(corp, danggi.inc, wC, wDanggi, wDanggi, startY);
+      addtl.suspended = 'youth';
+      addtl.inc = { ym: 0, yl: 0, nm: danggi.inc.nm, nl: danggi.inc.nl };
+      addtl.amt = { ym: 0, yl: 0, nm: danggi.amt.nm, nl: danggi.amt.nl };
+      addtl.total = danggi.amt.nm + danggi.amt.nl;
+      addtl.notes = ['청년등 인원 감소 → 제1호(청년등) 추가공제 중단 (§29의7②)',
+        '비청년(제2호)만 추가공제 적용: '+fmt(danggi.amt.nm+danggi.amt.nl)+'원'];
+      credit = danggi.amt.nm + danggi.amt.nl;
+    } else {
+      addtl = { inc: { ym: 0, yl: 0, nm: 0, nl: 0 }, amt: { ym: 0, yl: 0, nm: 0, nl: 0 },
+                total: 0, youthDec: false, suspended: 'all', dec: { ym: 0, yl: 0, nm: 0, nl: 0 },
+                notes: ['전체 상시근로자 수 감소 → 추가공제 전체 중단 (§29의7② 제1항 적용 안 함)',
+                  '→ 추가공제 인원: 없음 (공제 중단)'] };
+      credit = 0;
     }
 
     tl.push({ year:cy, role:i+'차 추가', credit, chugjing, sahu, hasData:true, addtl, idx:i, limit, mult, prevChug });
@@ -3248,39 +3269,48 @@ function calcVerification(tl, danggi, startY) {
 
   for (const item of items) {
     const wC = getW(startY, item.year);
-    const yd = item.addtl && item.addtl.youthDec;
+    const suspended = item.addtl && item.addtl.suspended;
     let expected;
-
     let reason = '';
-    if (yd) {
-      const dTotal = rp2(danggi.inc.ym+danggi.inc.yl+danggi.inc.nm+danggi.inc.nl);
-      const totalDec = Math.max(0, rp2(totalW(wDanggi)-totalW(wC)));
-      const maintained = Math.max(0, rp2(dTotal-totalDec));
-      const sc = dTotal > 0 ? maintained/dTotal : 0;
+
+    if (suspended === 'all') {
       expected = 0;
-      for (let k=0;k<4;k++) expected += truncAmt(truncW(danggi.inc[cats[k]]*sc)*nRates[k]*W);
-      reason = '전체 유지·청년 감소 → 증가인원('+fmtW(dTotal)+'명)×유지비율('+rp2(sc*100)+'%)를 비청년단가로 재계산 (§26의7⑤ 나목)';
+      reason = '전체 상시근로자 감소 → 추가공제 전체 중단 (§29의7②)';
+    } else if (suspended === 'youth') {
+      expected = danggi.amt.nm + danggi.amt.nl;
+      reason = '청년등 감소 → 청년 추가공제 중단, 비청년만 공제 (§29의7②)';
     } else {
-      const tDec = Math.max(0, rp2(totalW(wDanggi)-totalW(wC)));
-      if (tDec > 0) {
+      const yd = item.addtl && item.addtl.youthDec;
+      if (yd) {
+        const dTotal = rp2(danggi.inc.ym+danggi.inc.yl+danggi.inc.nm+danggi.inc.nl);
+        const totalDec = Math.max(0, rp2(totalW(wDanggi)-totalW(wC)));
+        const maintained = Math.max(0, rp2(dTotal-totalDec));
+        const sc = dTotal > 0 ? maintained/dTotal : 0;
         expected = 0;
-        const parts = [];
-        for (let k=0;k<4;k++) {
-          const dec = Math.max(0, rp2(wDanggi[cats[k]]-wC[cats[k]]));
-          const eff = Math.min(dec, danggi.inc[cats[k]]);
-          expected += danggi.amt[cats[k]] - truncAmt(eff*yRates[k]*W);
-          if (eff > 0) parts.push(catNames[k]+' -'+fmtW(eff)+'명');
-        }
-        reason = '전체 감소('+fmtW(tDec)+'명) → 카테고리별 차감: '+( parts.length ? parts.join(', ') : '해당없음');
+        for (let k=0;k<4;k++) expected += truncAmt(truncW(danggi.inc[cats[k]]*sc)*nRates[k]*W);
+        reason = '전체 유지·청년 감소 → 증가인원('+fmtW(dTotal)+'명)×유지비율('+rp2(sc*100)+'%)를 비청년단가로 재계산 (§26의7⑤ 나목)';
       } else {
-        expected = danggi.total;
-        reason = '전체·청년 모두 유지 → 당기 공제액 전액 (§29의7②, 감소 없음)';
+        const tDec = Math.max(0, rp2(totalW(wDanggi)-totalW(wC)));
+        if (tDec > 0) {
+          expected = 0;
+          const parts = [];
+          for (let k=0;k<4;k++) {
+            const dec = Math.max(0, rp2(wDanggi[cats[k]]-wC[cats[k]]));
+            const eff = Math.min(dec, danggi.inc[cats[k]]);
+            expected += danggi.amt[cats[k]] - truncAmt(eff*yRates[k]*W);
+            if (eff > 0) parts.push(catNames[k]+' -'+fmtW(eff)+'명');
+          }
+          reason = '전체 감소('+fmtW(tDec)+'명) → 카테고리별 차감: '+( parts.length ? parts.join(', ') : '해당없음');
+        } else {
+          expected = danggi.total;
+          reason = '전체·청년 모두 유지 → 당기 공제액 전액 (§29의7②, 감소 없음)';
+        }
       }
     }
 
     const match = item.credit === expected;
     if (!match) allMatch = false;
-    checks.push({ year: item.year, role: item.role, addtl: item.credit, expected, match, youthDec: yd, reason });
+    checks.push({ year: item.year, role: item.role, addtl: item.credit, expected, match, youthDec: !!(item.addtl&&item.addtl.youthDec), suspended, reason });
   }
 
   return { checks, allMatch };
@@ -3336,8 +3366,16 @@ function renderTimelines(all) {
         h += `<div class="tl-card-detail">청년+${fmtD(yInc)} / 비청년+${fmtD(nInc)}</div>`;
       } else {
         h += `<div class="tl-card-role"><span class="badge badge-addtl">${item.role}</span></div>`;
-        h += `<div class="tl-card-amount green">+${fmt(item.credit)}원</div>`;
-        if (item.addtl && item.addtl.youthDec) h += `<div style="margin-top:2px;"><span class="badge badge-warn">청년감소→비청년단가</span></div>`;
+        if (item.addtl && item.addtl.suspended === 'all') {
+          h += `<div class="tl-card-amount" style="color:var(--warn);">공제 중단</div>`;
+          h += `<div style="margin-top:2px;"><span class="badge badge-danger">전체감소→공제중단</span></div>`;
+        } else if (item.addtl && item.addtl.suspended === 'youth') {
+          h += `<div class="tl-card-amount" style="color:var(--accent2);">+${fmt(item.credit)}원</div>`;
+          h += `<div style="margin-top:2px;"><span class="badge badge-warn">청년감소→청년공제중단</span></div>`;
+        } else {
+          h += `<div class="tl-card-amount green">+${fmt(item.credit)}원</div>`;
+          if (item.addtl && item.addtl.youthDec) h += `<div style="margin-top:2px;"><span class="badge badge-warn">청년감소→비청년단가</span></div>`;
+        }
         if (item.sahu) h += `<div style="margin-top:4px;">${sahuBadge(item.sahu.type)}</div>`;
         if (item.chugjing>0) {
           h += `<div class="tl-card-chug">추징 -${fmt(item.chugjing)}원</div>`;
@@ -3393,17 +3431,32 @@ function renderTimelines(all) {
         if (!item.hasData || item.role==='전기' || item.role==='당기') return;
         h += `${item.role}(${item.year}): `;
         if (item.addtl) {
-          if (item.addtl.youthDec) h += `<span style="color:var(--warn);font-weight:600;">⚠ 청년감소→비청년단가</span> `;
-          const yRate = item.addtl.youthDec ? rt.normal : rt.youth;
-          if (isS) {
-            h += `유지 → 청년 수도권${fmtD(item.addtl.inc.ym)}×${fmt(yRate.metro)} + 비수도권${fmtD(item.addtl.inc.yl)}×${fmt(yRate.local)}`;
-            if (hasN) h += ` + 비청년 수도권${fmtD(item.addtl.inc.nm)}×${fmt(rt.normal.metro)} + 비수도권${fmtD(item.addtl.inc.nl)}×${fmt(rt.normal.local)}`;
+          if (item.addtl.suspended === 'all') {
+            h += `<span style="color:var(--warn);font-weight:600;">⚠ 전체감소 → 추가공제 중단 (§29의7② 제1항 적용 안 함)</span>`;
+            h += ` → <code>0원</code>`;
+          } else if (item.addtl.suspended === 'youth') {
+            h += `<span style="color:var(--warn);font-weight:600;">⚠ 청년감소 → 청년공제 중단 (§29의7② 제1호 적용 안 함)</span> `;
+            if (isS) {
+              h += `비청년만 공제: 수도권${fmtD(item.addtl.inc.nm)}×${fmt(rt.normal.metro)} + 비수도권${fmtD(item.addtl.inc.nl)}×${fmt(rt.normal.local)}`;
+            } else if (hasN) {
+              h += `비청년만 공제: ${fmtD(rp2(item.addtl.inc.nm+item.addtl.inc.nl))}×${fmt(rt.normal.metro)}`;
+            } else {
+              h += `비청년 공제 해당 없음`;
+            }
             h += ` = <code>${fmt(item.credit)}원</code>`;
           } else {
-            const kY = item.addtl.inc.ym+item.addtl.inc.yl, kN = item.addtl.inc.nm+item.addtl.inc.nl;
-            h += `유지 → 청년${fmtD(kY)}×${fmt(yRate.metro)}`;
-            if (hasN) h += ` + 비청년${fmtD(kN)}×${fmt(rt.normal.metro)}`;
-            h += ` = <code>${fmt(item.credit)}원</code>`;
+            if (item.addtl.youthDec) h += `<span style="color:var(--warn);font-weight:600;">⚠ 청년감소→비청년단가</span> `;
+            const yRate = item.addtl.youthDec ? rt.normal : rt.youth;
+            if (isS) {
+              h += `유지 → 청년 수도권${fmtD(item.addtl.inc.ym)}×${fmt(yRate.metro)} + 비수도권${fmtD(item.addtl.inc.yl)}×${fmt(yRate.local)}`;
+              if (hasN) h += ` + 비청년 수도권${fmtD(item.addtl.inc.nm)}×${fmt(rt.normal.metro)} + 비수도권${fmtD(item.addtl.inc.nl)}×${fmt(rt.normal.local)}`;
+              h += ` = <code>${fmt(item.credit)}원</code>`;
+            } else {
+              const kY = item.addtl.inc.ym+item.addtl.inc.yl, kN = item.addtl.inc.nm+item.addtl.inc.nl;
+              h += `유지 → 청년${fmtD(kY)}×${fmt(yRate.metro)}`;
+              if (hasN) h += ` + 비청년${fmtD(kN)}×${fmt(rt.normal.metro)}`;
+              h += ` = <code>${fmt(item.credit)}원</code>`;
+            }
           }
         }
         if (item.sahu && item.sahu.type!=='ok') {
@@ -3445,7 +3498,9 @@ function renderTimelines(all) {
           h += `추가공제 <code>${fmt(c.addtl)}원</code> `;
           h += c.match ? '=' : '&ne;';
           h += ` 기대 <code>${fmt(c.expected)}원</code>`;
-          if (c.youthDec) h += ' <span style="color:var(--warn);font-size:11px;">(청년&rarr;비청년단가)</span>';
+          if (c.suspended==='all') h += ' <span style="color:var(--warn);font-size:11px;">(추가공제 중단)</span>';
+          else if (c.suspended==='youth') h += ' <span style="color:var(--warn);font-size:11px;">(청년공제 중단)</span>';
+          else if (c.youthDec) h += ' <span style="color:var(--warn);font-size:11px;">(청년&rarr;비청년단가)</span>';
           h += ` <span class="${cls}">${sym}</span>`;
           if (c.reason) h += `<div style="font-size:11px;color:var(--text-muted);margin:1px 0 4px 8px;">&rarr; ${c.reason}</div>`;
           h += '</div>';
@@ -3925,10 +3980,19 @@ window.calcExportExcel = async function() {
           fc(ws,r2,ci++,'MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,D'+wD+'-D'+wP+'))',rp2(danggi.inc.ym+danggi.inc.yl),nf2);
         }
       } else if(item.addtl){
+        const susp = item.addtl.suspended;
+        if (susp === 'all') {
+          if(isS){dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,0,nf2);}
+          else if(hasN){dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,0,nf2);}
+          else{dc(ws,r2,ci++,0,nf2);}
+        } else if (susp === 'youth') {
+          if(isS){dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,danggi.inc.nm,nf2);dc(ws,r2,ci++,danggi.inc.nl,nf2);}
+          else if(hasN){dc(ws,r2,ci++,0,nf2);dc(ws,r2,ci++,rp2(danggi.inc.nm+danggi.inc.nl),nf2);}
+          else{dc(ws,r2,ci++,0,nf2);}
+        } else {
         // 추가공제: 당기 기준(조특법 29조의7). 당기 대비 감소분을 당기증가 한도로 차감.
         const wC=wRowMap[item.role], wP=wRowMap['당기'];
         if(yDec){
-          // 청년감소: INT(당기inc × MAX(0, 1 − 당기총감소/당기총증가) × 100)/100
           if(isS){
             const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+'+E'+danggiCalcRow+'+F'+danggiCalcRow+')';
             const tDec='MAX(0,ROUND(G'+wP+'-G'+wC+',2))';
@@ -3953,7 +4017,6 @@ window.calcExportExcel = async function() {
             fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         } else {
-          // 정상유지/부분감소: INT(MAX(0, 당기증가 − 당기대비감소)×100)/100
           if(isS){
             fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.ym,nf2);
             fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.yl,nf2);
@@ -3966,10 +4029,26 @@ window.calcExportExcel = async function() {
             fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
           }
         }
+        }
       }
 
-      // 공제액 수식: INT(inc*rate)
+      // 공제액 수식: INT(inc*rate), suspended 시 0 또는 비청년만
+      const susp2 = item.addtl && item.addtl.suspended;
       let amtFormula;
+      if (susp2 === 'all') {
+        dc(ws,r2,amtCI,0,nf);
+      } else if (susp2 === 'youth') {
+        if(isS){
+          const eC=L(4)+r2, fC=L(5)+r2;
+          amtFormula=ia(eC,refNM)+'+'+ia(fC,refNL);
+        } else if(hasN){
+          const dC=L(3)+r2;
+          amtFormula=ia(dC,refNM);
+        } else {
+          amtFormula='0';
+        }
+        fc(ws,r2,amtCI,amtFormula,item.credit,nf);
+      } else {
       if(isS){
         const cC=L(2)+r2, dC=L(3)+r2, eC=L(4)+r2, fC=L(5)+r2;
         if(yDec){
@@ -3989,6 +4068,7 @@ window.calcExportExcel = async function() {
         amtFormula=ia(cC,refYM);
       }
       fc(ws,r2,amtCI,amtFormula,item.credit,nf);
+      }
 
       // ── 추징액 수식 ──
       if(item.role==='당기'){
@@ -4089,7 +4169,9 @@ window.calcExportExcel = async function() {
       fc(ws,r2,netCI,L(amtCI)+r2+'-'+L(chugCI)+r2,item.credit-item.chugjing,nf);
 
       let note='';
-      if(yDec) note+='청년감소→비청년단가 ';
+      if(susp2==='all') note+='추가공제 중단 (§29의7②) ';
+      else if(susp2==='youth') note+='청년공제 중단 (§29의7②) ';
+      else if(yDec) note+='청년감소→비청년단가 ';
       if(item.sahu&&item.sahu.type!=='ok') note+='사후관리: '+sahuLabel(item.sahu.type);
       dc(ws,r2,cHdr.length-1,note);
 
@@ -4161,6 +4243,17 @@ window.calcExportExcel = async function() {
       if(!item.hasData || item.role==='전기' || item.role==='당기') return;
       let desc=`${item.role}(${item.year}): `;
       if(item.addtl){
+        if(item.addtl.suspended==='all'){
+          desc+='[추가공제 중단] 전체감소 → §29의7② 제1항 적용 안 함 = 0원';
+        } else if(item.addtl.suspended==='youth'){
+          desc+='[청년공제 중단] §29의7② 제1호 적용 안 함, 비청년만 공제: ';
+          if(isS){
+            desc+=`수도권 ${fmtD(item.addtl.inc.nm)}명×${fmt(rt.normal.metro*W)} + 비수도권 ${fmtD(item.addtl.inc.nl)}명×${fmt(rt.normal.local*W)}`;
+          } else if(hasN){
+            desc+=`${fmtD(rp2(item.addtl.inc.nm+item.addtl.inc.nl))}명×${fmt(rt.normal.metro*W)}`;
+          }
+          desc+=` = ${fmt(item.credit)}원`;
+        } else {
         const yRate = item.addtl.youthDec ? rt.normal : rt.youth;
         if(item.addtl.youthDec) desc+='[청년감소→비청년단가] ';
         if(isS){
@@ -4172,6 +4265,7 @@ window.calcExportExcel = async function() {
           desc+=`유지 → 청년 ${fmtD(kY)}명×${fmt(yRate.metro*W)}`;
           if(hasN) desc+=` + 비청년 ${fmtD(kN)}명×${fmt(rt.normal.metro*W)}`;
           desc+=` = ${fmt(item.credit)}원`;
+        }
         }
       }
       if(item.sahu && item.sahu.type!=='ok'){
