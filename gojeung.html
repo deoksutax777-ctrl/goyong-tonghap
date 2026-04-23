@@ -4098,7 +4098,7 @@ window.calcExportExcel = async function() {
           // 중소: 4-region sahu formula
           const ymD='MAX(0,C'+wDR+'-C'+wCR+')', ylD='MAX(0,D'+wDR+'-D'+wCR+')';
           const nmD='MAX(0,E'+wDR+'-E'+wCR+')', nlD='MAX(0,F'+wDR+'-F'+wCR+')';
-          const yD='('+ymD+'+'+ylD+')';
+          const yD='MAX(0,(C'+wDR+'+D'+wDR+')-(C'+wCR+'+D'+wCR+'))';
           const tD='MAX(0,G'+wDR+'-G'+wCR+')';
           const eYm='MIN('+ymD+',C'+dIR+')', eYl='MIN('+ylD+',D'+dIR+')';
           const eNm='MIN('+nmD+',E'+dIR+')', eNl='MIN('+nlD+',F'+dIR+')';
