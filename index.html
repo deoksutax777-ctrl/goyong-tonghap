@@ -3006,27 +3006,32 @@ function calc_sahuCheck(corp, wD, wC, dInc, mult) {
     const ylDec = Math.max(0, calc_rp2(wD.yl-wC.yl));
     const nmDec = Math.max(0, calc_rp2(wD.nm-wC.nm));
     const nlDec = Math.max(0, calc_rp2(wD.nl-wC.nl));
-    const sumYDec = calc_rp2(ymDec+ylDec);
-    const sumNDec = calc_rp2(nmDec+nlDec);
-    const ymR = sumYDec>0 ? ymDec/sumYDec : 0;
-    const ylR = sumYDec>0 ? ylDec/sumYDec : 0;
-    const nmR = sumNDec>0 ? nmDec/sumNDec : 0;
-    const nlR = sumNDec>0 ? nlDec/sumNDec : 0;
 
     if (type==='youth_only') {
-      const effY = Math.min(yDec, yInc);
-      raw = (effY*ymR)*(r.youth.metro-r.normal.metro)
-          + (effY*ylR)*(r.youth.local-r.normal.local);
+      const effYm = Math.min(ymDec, dInc.ym);
+      const effYl = Math.min(ylDec, dInc.yl);
+      raw = effYm*(r.youth.metro-r.normal.metro)
+          + effYl*(r.youth.local-r.normal.local);
     } else if (type==='case_a') {
-      const eff=Math.min(yDec,yInc), conv=Math.max(0,eff-tDec), exit=tDec;
-      raw = (conv*ymR)*(r.youth.metro-r.normal.metro)
-          + (conv*ylR)*(r.youth.local-r.normal.local);
-      raw += (exit*ymR)*r.youth.metro
-           + (exit*ylR)*r.youth.local;
+      const effYm = Math.min(ymDec, dInc.ym);
+      const effYl = Math.min(ylDec, dInc.yl);
+      const mTotDec = Math.max(0, calc_rp2((wD.ym+wD.nm)-(wC.ym+wC.nm)));
+      const lTotDec = Math.max(0, calc_rp2((wD.yl+wD.nl)-(wC.yl+wC.nl)));
+      const exitM = Math.min(effYm, mTotDec);
+      const exitL = Math.min(effYl, lTotDec);
+      const convM = Math.max(0, effYm - exitM);
+      const convL = Math.max(0, effYl - exitL);
+      raw = convM*(r.youth.metro-r.normal.metro)
+          + convL*(r.youth.local-r.normal.local);
+      raw += exitM*r.youth.metro
+           + exitL*r.youth.local;
     } else {
-      const effY=Math.min(yDec,tDec), effN=Math.min(nDec,tDec);
-      raw = (effY*ymR)*r.youth.metro + (effY*ylR)*r.youth.local
-          + (effN*nmR)*r.normal.metro + (effN*nlR)*r.normal.local;
+      const effYm = Math.min(ymDec, dInc.ym);
+      const effYl = Math.min(ylDec, dInc.yl);
+      const effNm = Math.min(nmDec, dInc.nm);
+      const effNl = Math.min(nlDec, dInc.nl);
+      raw = effYm*r.youth.metro + effYl*r.youth.local
+          + effNm*r.normal.metro + effNl*r.normal.local;
     }
   }
 
@@ -4029,7 +4034,7 @@ async function calc_exportExcel() {
         if(isS){
           const ymD='MAX(0,C'+wDR+'-C'+wCR+')', ylD='MAX(0,D'+wDR+'-D'+wCR+')';
           const nmD='MAX(0,E'+wDR+'-E'+wCR+')', nlD='MAX(0,F'+wDR+'-F'+wCR+')';
-          const yD='('+ymD+'+'+ylD+')';
+          const yD='MAX(0,(C'+wDR+'+D'+wDR+')-(C'+wCR+'+D'+wCR+'))';
           const tD='MAX(0,G'+wDR+'-G'+wCR+')';
           const eYm='MIN('+ymD+',C'+dIR+')', eYl='MIN('+ylD+',D'+dIR+')';
           const eNm='MIN('+nmD+',E'+dIR+')', eNl='MIN('+nlD+',F'+dIR+')';
