@@ -3098,25 +3098,32 @@ function sahuCheck(corp, wD, wC, dInc, mult, startY) {
       notes.push('지역: 합계');
       notes.push('  추징액: '+fmt(aM+aL));
     } else {
+      // case_b: 전체감소>청년감소 → 청년감소분은 청년단가, 나머지 전체감소분은 청년외단가 (지역별)
+      // ※ 추징은 카테고리별이 아닌 「전체·청년등 합계」 기준 (시행령 §26의7⑤ 가목 2))
+      //   청년외가 줄어도 청년 증가로 상쇄되면 전체 순감소분만 청년외단가로 추징
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
-      const effNm = Math.min(nmDec, dInc.nm);
-      const effNl = Math.min(nlDec, dInc.nl);
+      const mTotDec = Math.max(0, rp2((wD.ym+wD.nm)-(wC.ym+wC.nm)));
+      const lTotDec = Math.max(0, rp2((wD.yl+wD.nl)-(wC.yl+wC.nl)));
+      const nmShare = Math.min(Math.max(0, rp2(mTotDec-effYm)), dInc.nm);
+      const nlShare = Math.min(Math.max(0, rp2(lTotDec-effYl)), dInc.nl);
       raw = effYm*r.youth.metro + effYl*r.youth.local
-          + effNm*r.normal.metro + effNl*r.normal.local;
+          + nmShare*r.normal.metro + nlShare*r.normal.local;
 
-      const aM = (effYm*r.youth.metro + effNm*r.normal.metro)*mult*W;
-      const aL = (effYl*r.youth.local + effNl*r.normal.local)*mult*W;
+      const aM = (effYm*r.youth.metro + nmShare*r.normal.metro)*mult*W;
+      const aL = (effYl*r.youth.local + nlShare*r.normal.local)*mult*W;
       notes.push('[지역별 추징 내역]');
       region('수도권', [
-        '청년: MIN('+fmtD(ymDec)+', '+fmtD(dInc.ym)+') = '+fmtD(effYm)+' × '+fmt(toWon(r.youth.metro))+' = '+fmt(effYm*r.youth.metro*mult*W),
-        '비청년: MIN('+fmtD(nmDec)+', '+fmtD(dInc.nm)+') = '+fmtD(effNm)+' × '+fmt(toWon(r.normal.metro))+' = '+fmt(effNm*r.normal.metro*mult*W),
+        '전체 감소: '+fmtD(mTotDec)+' / 청년 감소(공제범위): MIN('+fmtD(ymDec)+', '+fmtD(dInc.ym)+') = '+fmtD(effYm),
+        '· 청년분: '+fmtD(effYm)+' × '+fmt(toWon(r.youth.metro))+' = '+fmt(effYm*r.youth.metro*mult*W),
+        '· 청년외분(전체감소−청년감소): MIN('+fmtD(rp2(Math.max(0,mTotDec-effYm)))+', '+fmtD(dInc.nm)+') = '+fmtD(nmShare)+' × '+fmt(toWon(r.normal.metro))+' = '+fmt(nmShare*r.normal.metro*mult*W),
         '추징액'+mLbl+': '+fmt(aM),
       ]);
       sep();
       region('비수도권', [
-        '청년: MIN('+fmtD(ylDec)+', '+fmtD(dInc.yl)+') = '+fmtD(effYl)+' × '+fmt(toWon(r.youth.local))+' = '+fmt(effYl*r.youth.local*mult*W),
-        '비청년: MIN('+fmtD(nlDec)+', '+fmtD(dInc.nl)+') = '+fmtD(effNl)+' × '+fmt(toWon(r.normal.local))+' = '+fmt(effNl*r.normal.local*mult*W),
+        '전체 감소: '+fmtD(lTotDec)+' / 청년 감소(공제범위): MIN('+fmtD(ylDec)+', '+fmtD(dInc.yl)+') = '+fmtD(effYl),
+        '· 청년분: '+fmtD(effYl)+' × '+fmt(toWon(r.youth.local))+' = '+fmt(effYl*r.youth.local*mult*W),
+        '· 청년외분(전체감소−청년감소): MIN('+fmtD(rp2(Math.max(0,lTotDec-effYl)))+', '+fmtD(dInc.nl)+') = '+fmtD(nlShare)+' × '+fmt(toWon(r.normal.local))+' = '+fmt(nlShare*r.normal.local*mult*W),
         '추징액'+mLbl+': '+fmt(aL),
       ]);
       sep();
