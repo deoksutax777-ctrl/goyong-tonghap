@@ -2924,11 +2924,15 @@ function calc_calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi) {
       amt = { ym: calc_truncAmt(inc.ym*r.youth.metro*W), yl: calc_truncAmt(inc.yl*r.youth.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
     } else {
       if(hasCatDec) {
-        const decParts = [];
+        const decParts = [], youthCats = [];
         const cats = ['ym','yl','nm','nl'];
-        cats.forEach(k => { if(dec[k]>0) decParts.push(catName[k]+' '+calc_fmtD(dec[k])+'명 감소'); });
+        cats.forEach(k => { if(dec[k]>0){ decParts.push(catName[k]+' '+calc_fmtD(dec[k])+'명 감소'); if(k==='ym'||k==='yl') youthCats.push(k); } });
         notes.push('전체 유지 + 청년등 유지 → 당기 공제 인원 전액 유지 (조특법 §29의8 제1항)');
-        notes.push('  참고: '+decParts.join(', ')+'이 있으나, 비청년 단독 감소는 사후관리 대상이 아니므로 추가공제에 영향 없음');
+        const reason = youthCats.length>0
+          ? '청년 카테고리 감소가 있으나 다른 카테고리 증가로 상쇄되어 청년등 합계는 유지됨(사후관리·추징은 지역 구분이 아닌 청년등·전체 합계 기준). 전체도 유지되어 추가공제·추징에 영향 없음'
+          : '비청년 단독 감소이고 청년등·전체 합계는 모두 유지되어 사후관리(추징) 대상이 아님';
+        notes.push('  참고: '+decParts.join(', ')+' — '+reason);
+        if(youthCats.length>0) notes.push('  ※ 사후관리·추징은 수도권/비수도권 구분 없이 「전체 상시근로자 수」와 「청년등 상시근로자 수」의 합계 증감만으로 판정 (지역 구분은 공제액 단가 계산에만 적용)');
       } else {
         notes.push('전 카테고리 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
       }
@@ -3007,11 +3011,38 @@ function calc_sahuCheck(corp, wD, wC, dInc, mult) {
     const nmDec = Math.max(0, calc_rp2(wD.nm-wC.nm));
     const nlDec = Math.max(0, calc_rp2(wD.nl-wC.nl));
 
+    // 지역별 상세 해설 헬퍼
+    const toWon = v => v*W;
+    const mLbl = mult>1 ? '('+mult+'년분)' : '';
+    const sep = () => notes.push(' ────────────────────────────────');
+    const region = (label, lines) => { notes.push('지역: '+label); lines.forEach(l => notes.push('  '+l)); };
+    const ymDiff = r.youth.metro-r.normal.metro, ylDiff = r.youth.local-r.normal.local;
+
     if (type==='youth_only') {
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
-      raw = effYm*(r.youth.metro-r.normal.metro)
-          + effYl*(r.youth.local-r.normal.local);
+      raw = effYm*ymDiff + effYl*ylDiff;
+
+      const aM = effYm*ymDiff*mult*W, aL = effYl*ylDiff*mult*W;
+      notes.push('[지역별 추징 내역]');
+      region('수도권', [
+        '청년 감소: '+calc_fmtD(ymDec),
+        '당기 공제 청년: '+calc_fmtD(dInc.ym),
+        '추징 인원: MIN('+calc_fmtD(ymDec)+', '+calc_fmtD(dInc.ym)+') = '+calc_fmtD(effYm),
+        '차액: '+calc_fmt(toWon(r.youth.metro))+' − '+calc_fmt(toWon(r.normal.metro))+' = '+calc_fmt(toWon(ymDiff)),
+        '추징액'+mLbl+': '+calc_fmt(aM),
+      ]);
+      sep();
+      region('비수도권', [
+        '청년 감소: '+calc_fmtD(ylDec),
+        '당기 공제 청년: '+calc_fmtD(dInc.yl),
+        '추징 인원: MIN('+calc_fmtD(ylDec)+', '+calc_fmtD(dInc.yl)+') = '+calc_fmtD(effYl),
+        '차액: '+calc_fmt(toWon(r.youth.local))+' − '+calc_fmt(toWon(r.normal.local))+' = '+calc_fmt(toWon(ylDiff)),
+        '추징액'+mLbl+': '+calc_fmt(aL),
+      ]);
+      sep();
+      notes.push('지역: 합계');
+      notes.push('  추징액: '+calc_fmt(aM+aL));
     } else if (type==='case_a') {
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
@@ -3021,10 +3052,28 @@ function calc_sahuCheck(corp, wD, wC, dInc, mult) {
       const exitL = Math.min(effYl, lTotDec);
       const convM = Math.max(0, effYm - exitM);
       const convL = Math.max(0, effYl - exitL);
-      raw = convM*(r.youth.metro-r.normal.metro)
-          + convL*(r.youth.local-r.normal.local);
-      raw += exitM*r.youth.metro
-           + exitL*r.youth.local;
+      raw = convM*ymDiff + convL*ylDiff;
+      raw += exitM*r.youth.metro + exitL*r.youth.local;
+
+      const aM = (exitM*r.youth.metro + convM*ymDiff)*mult*W;
+      const aL = (exitL*r.youth.local + convL*ylDiff)*mult*W;
+      notes.push('[지역별 추징 내역]');
+      region('수도권', [
+        '청년 감소(공제범위): MIN('+calc_fmtD(ymDec)+', '+calc_fmtD(dInc.ym)+') = '+calc_fmtD(effYm),
+        '· 전체감소분(청년 전액단가): MIN('+calc_fmtD(effYm)+', '+calc_fmtD(mTotDec)+') = '+calc_fmtD(exitM)+' × '+calc_fmt(toWon(r.youth.metro))+' = '+calc_fmt(exitM*r.youth.metro*mult*W),
+        '· 전환분(차액): '+calc_fmtD(convM)+' × '+calc_fmt(toWon(ymDiff))+' = '+calc_fmt(convM*ymDiff*mult*W),
+        '추징액'+mLbl+': '+calc_fmt(aM),
+      ]);
+      sep();
+      region('비수도권', [
+        '청년 감소(공제범위): MIN('+calc_fmtD(ylDec)+', '+calc_fmtD(dInc.yl)+') = '+calc_fmtD(effYl),
+        '· 전체감소분(청년 전액단가): MIN('+calc_fmtD(effYl)+', '+calc_fmtD(lTotDec)+') = '+calc_fmtD(exitL)+' × '+calc_fmt(toWon(r.youth.local))+' = '+calc_fmt(exitL*r.youth.local*mult*W),
+        '· 전환분(차액): '+calc_fmtD(convL)+' × '+calc_fmt(toWon(ylDiff))+' = '+calc_fmt(convL*ylDiff*mult*W),
+        '추징액'+mLbl+': '+calc_fmt(aL),
+      ]);
+      sep();
+      notes.push('지역: 합계');
+      notes.push('  추징액: '+calc_fmt(aM+aL));
     } else {
       const effYm = Math.min(ymDec, dInc.ym);
       const effYl = Math.min(ylDec, dInc.yl);
@@ -3032,6 +3081,24 @@ function calc_sahuCheck(corp, wD, wC, dInc, mult) {
       const effNl = Math.min(nlDec, dInc.nl);
       raw = effYm*r.youth.metro + effYl*r.youth.local
           + effNm*r.normal.metro + effNl*r.normal.local;
+
+      const aM = (effYm*r.youth.metro + effNm*r.normal.metro)*mult*W;
+      const aL = (effYl*r.youth.local + effNl*r.normal.local)*mult*W;
+      notes.push('[지역별 추징 내역]');
+      region('수도권', [
+        '청년: MIN('+calc_fmtD(ymDec)+', '+calc_fmtD(dInc.ym)+') = '+calc_fmtD(effYm)+' × '+calc_fmt(toWon(r.youth.metro))+' = '+calc_fmt(effYm*r.youth.metro*mult*W),
+        '비청년: MIN('+calc_fmtD(nmDec)+', '+calc_fmtD(dInc.nm)+') = '+calc_fmtD(effNm)+' × '+calc_fmt(toWon(r.normal.metro))+' = '+calc_fmt(effNm*r.normal.metro*mult*W),
+        '추징액'+mLbl+': '+calc_fmt(aM),
+      ]);
+      sep();
+      region('비수도권', [
+        '청년: MIN('+calc_fmtD(ylDec)+', '+calc_fmtD(dInc.yl)+') = '+calc_fmtD(effYl)+' × '+calc_fmt(toWon(r.youth.local))+' = '+calc_fmt(effYl*r.youth.local*mult*W),
+        '비청년: MIN('+calc_fmtD(nlDec)+', '+calc_fmtD(dInc.nl)+') = '+calc_fmtD(effNl)+' × '+calc_fmt(toWon(r.normal.local))+' = '+calc_fmt(effNl*r.normal.local*mult*W),
+        '추징액'+mLbl+': '+calc_fmt(aL),
+      ]);
+      sep();
+      notes.push('지역: 합계');
+      notes.push('  추징액: '+calc_fmt(aM+aL));
     }
   }
 
@@ -3053,9 +3120,9 @@ function calc_sahuBadge(type) {
 function calc_sahuLabel(type) {
   switch(type) {
     case 'ok': return '정상';
-    case 'youth_only': return '전체유지+청년감소 (시행령 §26의7⑤ 나목)';
-    case 'case_a': return '전체감소, 청년감소≥전체감소 (시행령 §26의7⑤ 가목 1))';
-    case 'case_b': return '전체감소, 청년감소<전체감소 (시행령 §26의7⑤ 가목 2))';
+    case 'youth_only': return '전체유지+청년감소 (시행령 §26의8⑤ 나목)';
+    case 'case_a': return '전체감소, 청년감소≥전체감소 (시행령 §26의8⑤ 가목 1))';
+    case 'case_b': return '전체감소, 청년감소<전체감소 (시행령 §26의8⑤ 가목 2))';
     default: return type;
   }
 }
