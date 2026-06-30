@@ -2678,7 +2678,8 @@ function calc_syncYear(sourceStartY, y, suffix) {
     if (sy === sourceStartY) continue;
     const targetEl = document.getElementById('w'+sy+'-'+y+'-'+suffix);
     if (!targetEl) continue;
-    if (targetEl.value === '0' || targetEl.value === '') {
+    const tv = parseFloat(targetEl.value);
+    if (targetEl.value === '' || isNaN(tv) || tv === 0) {
       targetEl.value = val;
       calc_updateTotPlaceholder(sy, y);
     }
