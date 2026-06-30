@@ -4160,17 +4160,19 @@ window.calcExportExcel = async function() {
         if(isS){
           // 중소: 4-region sahu formula
           const ymD='MAX(0,C'+wDR+'-C'+wCR+')', ylD='MAX(0,D'+wDR+'-D'+wCR+')';
-          const nmD='MAX(0,E'+wDR+'-E'+wCR+')', nlD='MAX(0,F'+wDR+'-F'+wCR+')';
           const yD='MAX(0,(C'+wDR+'+D'+wDR+')-(C'+wCR+'+D'+wCR+'))';
           const tD='MAX(0,G'+wDR+'-G'+wCR+')';
           const eYm='MIN('+ymD+',C'+dIR+')', eYl='MIN('+ylD+',D'+dIR+')';
-          const eNm='MIN('+nmD+',E'+dIR+')', eNl='MIN('+nlD+',F'+dIR+')';
-
-          const yo='ROUND('+eYm+'*('+refYM+'-'+refNM+')+'+eYl+'*('+refYL+'-'+refNL+'),2)';
-          const cb='ROUND('+eYm+'*'+refYM+'+'+eYl+'*'+refYL+'+'+eNm+'*'+refNM+'+'+eNl+'*'+refNL+',2)';
 
           const mTD='MAX(0,(C'+wDR+'+E'+wDR+')-(C'+wCR+'+E'+wCR+'))';
           const lTD='MAX(0,(D'+wDR+'+F'+wDR+')-(D'+wCR+'+F'+wCR+'))';
+
+          const yo='ROUND('+eYm+'*('+refYM+'-'+refNM+')+'+eYl+'*('+refYL+'-'+refNL+'),2)';
+          // case_b: 합계기준 — 청년외분 = 전체감소−청년감소 (카테고리별 직접추징 아님)
+          const nmShare='MIN(MAX(0,'+mTD+'-'+eYm+'),E'+dIR+')';
+          const nlShare='MIN(MAX(0,'+lTD+'-'+eYl+'),F'+dIR+')';
+          const cb='ROUND('+eYm+'*'+refYM+'+'+eYl+'*'+refYL+'+'+nmShare+'*'+refNM+'+'+nlShare+'*'+refNL+',2)';
+
           const exM='MIN('+eYm+','+mTD+')', exL='MIN('+eYl+','+lTD+')';
           const cvM='MAX(0,'+eYm+'-'+exM+')', cvL='MAX(0,'+eYl+'-'+exL+')';
           const ca='ROUND('+cvM+'*('+refYM+'-'+refNM+')+'+cvL+'*('+refYL+'-'+refNL+')+'+exM+'*'+refYM+'+'+exL+'*'+refYL+',2)';
