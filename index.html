@@ -2887,59 +2887,38 @@ function calc_calcAddtl(corp, danggiInc, wCheck, wPrev, wDanggi) {
   const r = RATES[corp];
   const isS = (corp==='중소'), hasN = (corp!=='대기업');
   const dec = calc_maxZ(calc_diffW(wDanggi, wCheck));
-  const youthDec = wDanggi && (calc_youthW(wCheck) < calc_youthW(wDanggi));
   const notes = [];
   const catName = {ym:'청년(수도권)',yl:'청년(비수도권)',nm:'비청년(수도권)',nl:'비청년(비수도권)'};
   let inc, amt;
 
   const wDTotal = calc_totalW(wDanggi), wCTotal = calc_totalW(wCheck);
   const wDYouth = calc_youthW(wDanggi), wCYouth = calc_youthW(wCheck);
+  const totalDec = calc_rp2(wDTotal - wCTotal);    // >0이면 전체 상시 감소
+  const youthDecAmt = calc_rp2(wDYouth - wCYouth);  // >0이면 청년등 감소
+  // 조특법 §29의8②(=구 §29의7②): 전체 상시 감소 → 추가공제 전액 부적용,
+  //   전체 유지·청년등만 감소 → 청년분(제1호)만 부적용·청년외분 유지
+  const youthDec = (totalDec <= 0) && (youthDecAmt > 0);
 
-  if (youthDec) {
-    const dTotal = calc_rp2(danggiInc.ym + danggiInc.yl + danggiInc.nm + danggiInc.nl);
-    const totalDec = Math.max(0, calc_rp2(wDTotal - wCTotal));
-    const maintained = Math.max(0, calc_rp2(dTotal - totalDec));
-    const scale = dTotal > 0 ? maintained / dTotal : 0;
-    notes.push('청년등 인원 감소 발생: 당기 청년등 '+calc_fmtD(wDYouth)+'명 → 해당연도 '+calc_fmtD(wCYouth)+'명 ('+calc_fmtD(calc_rp2(wDYouth-wCYouth))+'명↓)');
-    if(totalDec>0) notes.push('전체 상시근로자도 감소: 당기 '+calc_fmtD(wDTotal)+'명 → '+calc_fmtD(wCTotal)+'명 ('+calc_fmtD(totalDec)+'명↓)');
-    notes.push('→ 비청년 단가 적용, 유지비율 '+calc_fmtD(calc_rp2(maintained))+'/'+calc_fmtD(dTotal)+' = '+(scale*100).toFixed(1)+'%');
-    inc = { ym: calc_truncW(danggiInc.ym*scale), yl: calc_truncW(danggiInc.yl*scale), nm: calc_truncW(danggiInc.nm*scale), nl: calc_truncW(danggiInc.nl*scale) };
-    amt = { ym: calc_truncAmt(inc.ym*r.normal.metro*W), yl: calc_truncAmt(inc.yl*r.normal.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
+  if (totalDec > 0) {
+    notes.push('전체 상시근로자 감소: 최초공제연도 '+calc_fmtD(wDTotal)+'명 → 해당연도 '+calc_fmtD(wCTotal)+'명 ('+calc_fmtD(totalDec)+'명↓)');
+    notes.push('→ 전체 상시근로자가 최초공제연도보다 감소 → 해당 과세연도부터 추가공제 전액 미적용 (조특법 §29의8② 제1항 부적용). 별도 사후관리 추징 발생');
+    inc = { ym:0, yl:0, nm:0, nl:0 };
+    amt = { ym:0, yl:0, nm:0, nl:0 };
+  } else if (youthDec) {
+    notes.push('전체 상시근로자 유지, 청년등만 감소: 최초공제연도 청년등 '+calc_fmtD(wDYouth)+'명 → 해당연도 '+calc_fmtD(wCYouth)+'명 ('+calc_fmtD(youthDecAmt)+'명↓)');
+    notes.push('→ 청년분 추가공제 미적용 (조특법 §29의8② 제1항제1호 부적용), 청년등외분만 추가공제 유지');
+    inc = { ym:0, yl:0, nm:danggiInc.nm, nl:danggiInc.nl };
+    amt = { ym:0, yl:0, nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
   } else {
-    const totalDec = calc_rp2(wDTotal - wCTotal);
     const hasCatDec = (dec.ym>0 || dec.yl>0 || dec.nm>0 || dec.nl>0);
-
-    if(totalDec > 0) {
-      notes.push('전체 상시근로자 감소: 당기 '+calc_fmtD(wDTotal)+'명 → '+calc_fmtD(wCTotal)+'명 ('+calc_fmtD(totalDec)+'명 감소, 청년등은 유지)');
-      if(hasCatDec) {
-        const cats = ['ym','yl','nm','nl'];
-        cats.forEach(k => {
-          if(dec[k] > 0 && danggiInc[k] > 0) {
-            const remain = calc_truncW(Math.max(0, danggiInc[k] - dec[k]));
-            if(remain <= 0) notes.push('  '+catName[k]+': 당기 대비 '+calc_fmtD(dec[k])+'명 감소 → 당기 증가분 '+calc_fmtD(danggiInc[k])+'명 전액 차감 (공제 0)');
-            else notes.push('  '+catName[k]+': 당기 대비 '+calc_fmtD(dec[k])+'명 감소 → 당기 증가분 '+calc_fmtD(danggiInc[k])+'명에서 차감, 잔여 '+calc_fmtD(remain)+'명 공제');
-          }
-        });
-      }
-      inc = { ym: calc_truncW(Math.max(0, danggiInc.ym-dec.ym)), yl: calc_truncW(Math.max(0, danggiInc.yl-dec.yl)), nm: calc_truncW(Math.max(0, danggiInc.nm-dec.nm)), nl: calc_truncW(Math.max(0, danggiInc.nl-dec.nl)) };
-      amt = { ym: calc_truncAmt(inc.ym*r.youth.metro*W), yl: calc_truncAmt(inc.yl*r.youth.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
-    } else {
-      if(hasCatDec) {
-        const decParts = [], youthCats = [];
-        const cats = ['ym','yl','nm','nl'];
-        cats.forEach(k => { if(dec[k]>0){ decParts.push(catName[k]+' '+calc_fmtD(dec[k])+'명 감소'); if(k==='ym'||k==='yl') youthCats.push(k); } });
-        notes.push('전체 유지 + 청년등 유지 → 당기 공제 인원 전액 유지 (조특법 §29의8 제1항)');
-        const reason = youthCats.length>0
-          ? '청년 카테고리 감소가 있으나 다른 카테고리 증가로 상쇄되어 청년등 합계는 유지됨(사후관리·추징은 지역 구분이 아닌 청년등·전체 합계 기준). 전체도 유지되어 추가공제·추징에 영향 없음'
-          : '비청년 단독 감소이고 청년등·전체 합계는 모두 유지되어 사후관리(추징) 대상이 아님';
-        notes.push('  참고: '+decParts.join(', ')+' — '+reason);
-        if(youthCats.length>0) notes.push('  ※ 사후관리·추징은 수도권/비수도권 구분 없이 「전체 상시근로자 수」와 「청년등 상시근로자 수」의 합계 증감만으로 판정 (지역 구분은 공제액 단가 계산에만 적용)');
-      } else {
-        notes.push('전 카테고리 유지 (당기 대비 감소 없음) → 당기 증가 인원 전액 유지');
-      }
-      inc = { ym: danggiInc.ym, yl: danggiInc.yl, nm: danggiInc.nm, nl: danggiInc.nl };
-      amt = { ym: calc_truncAmt(inc.ym*r.youth.metro*W), yl: calc_truncAmt(inc.yl*r.youth.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
+    notes.push('전체·청년등 모두 최초공제연도 대비 유지 → 당기 공제 인원 전액 추가공제 (조특법 §29의8② 제1항 준용)');
+    if(hasCatDec) {
+      const decParts = [];
+      ['ym','yl','nm','nl'].forEach(k => { if(dec[k]>0) decParts.push(catName[k]+' '+calc_fmtD(dec[k])+'명'); });
+      notes.push('  참고: 일부 카테고리 감소('+decParts.join(', ')+')가 있으나 전체·청년등 합계는 유지되어 추가공제·추징에 영향 없음 (판정은 합계 기준)');
     }
+    inc = { ym: danggiInc.ym, yl: danggiInc.yl, nm: danggiInc.nm, nl: danggiInc.nl };
+    amt = { ym: calc_truncAmt(inc.ym*r.youth.metro*W), yl: calc_truncAmt(inc.yl*r.youth.local*W), nm: calc_truncAmt(inc.nm*r.normal.metro*W), nl: calc_truncAmt(inc.nl*r.normal.local*W) };
   }
 
   const finalParts = [];
@@ -3306,35 +3285,22 @@ function calc_calcVerification(tl, danggi, startY) {
 
   for (const item of items) {
     const wC = calc_getW(startY, item.year);
-    const yd = item.addtl && item.addtl.youthDec;
+    const tDec = calc_rp2(calc_totalW(wDanggi)-calc_totalW(wC));
+    const yDec = calc_rp2(calc_youthW(wDanggi)-calc_youthW(wC));
     let expected;
     let reason = '';
 
-    if (yd) {
-      const dTotal = calc_rp2(danggi.inc.ym+danggi.inc.yl+danggi.inc.nm+danggi.inc.nl);
-      const totalDec = Math.max(0, calc_rp2(calc_totalW(wDanggi)-calc_totalW(wC)));
-      const maintained = Math.max(0, calc_rp2(dTotal-totalDec));
-      const sc = dTotal > 0 ? maintained/dTotal : 0;
+    if (tDec > 0) {
       expected = 0;
-      for (let k=0;k<4;k++) expected += calc_truncAmt(calc_truncW(danggi.inc[cats[k]]*sc)*nRates[k]*W);
-      reason = '전체 유지·청년 감소 → 증가인원('+fmtW(dTotal)+'명)×유지비율('+calc_rp2(sc*100)+'%)를 비청년단가로 재계산 (§26의7⑤ 나목)';
+      reason = '전체 상시근로자 감소('+fmtW(tDec)+'명) → 추가공제 전액 미적용 (§29의8② 제1항 부적용)';
+    } else if (yDec > 0) {
+      expected = calc_truncAmt(danggi.inc.nm*r.normal.metro*W) + calc_truncAmt(danggi.inc.nl*r.normal.local*W);
+      reason = '전체 유지·청년등 감소('+fmtW(yDec)+'명) → 청년분 미적용, 청년등외만 공제 (§29의8② 제1항제1호 부적용)';
     } else {
-      const tDec = Math.max(0, calc_rp2(calc_totalW(wDanggi)-calc_totalW(wC)));
-      if (tDec > 0) {
-        expected = 0;
-        const parts = [];
-        for (let k=0;k<4;k++) {
-          const dec = Math.max(0, calc_rp2(wDanggi[cats[k]]-wC[cats[k]]));
-          const eff = Math.min(dec, danggi.inc[cats[k]]);
-          expected += danggi.amt[cats[k]] - calc_truncAmt(eff*yRates[k]*W);
-          if (eff > 0) parts.push(catNames[k]+' -'+fmtW(eff)+'명');
-        }
-        reason = '전체 감소('+fmtW(tDec)+'명) → 카테고리별 차감: '+(parts.length ? parts.join(', ') : '해당없음');
-      } else {
-        expected = danggi.total;
-        reason = '전체·청년 모두 유지 → 당기 공제액 전액 (§29의8②, 감소 없음)';
-      }
+      expected = danggi.total;
+      reason = '전체·청년등 모두 유지 → 당기 공제액 전액 (§29의8② 제1항 준용)';
     }
+    const yd = (tDec<=0 && yDec>0);
 
     const match = item.credit === expected;
     if (!match) allMatch = false;
@@ -4031,44 +3997,25 @@ async function calc_exportExcel() {
           fc(ws,r2,ci++,'MIN(MAX(0,C'+wD+'-C'+wP+'),MAX(0,D'+wD+'-D'+wP+'))',calc_rp2(danggi.inc.ym+danggi.inc.yl),nf2);
         }
       } else if(item.addtl){
-        // 추가공제: 당기 기준(조특법 29조의7). 당기 대비 감소분을 당기증가 한도로 차감.
+        // 추가공제(조특법 §29의8② 제1항 준용): 전체 상시 감소 → 전액 미적용,
+        //   전체 유지·청년등만 감소 → 청년분(제1호) 미적용·청년등외분 유지
         const wC=wRowMap[item.role], wP=wRowMap['당기'];
-        if(yDec){
-          if(isS){
-            const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+'+E'+danggiCalcRow+'+F'+danggiCalcRow+')';
-            const tDec='MAX(0,ROUND(G'+wP+'-G'+wC+',2))';
-            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
-            const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(E'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(F'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',item.addtl.inc.nl,nf2);
-          } else if(hasN){
-            const dSum='(C'+danggiCalcRow+'+D'+danggiCalcRow+')';
-            const tDec='MAX(0,ROUND(E'+wP+'-E'+wC+',2))';
-            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
-            const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'INT(ROUND(D'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',calc_rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
-          } else {
-            const dSum='C'+danggiCalcRow;
-            const tDec='MAX(0,ROUND(D'+wP+'-D'+wC+',2))';
-            const maint='MAX(0,ROUND('+dSum+'-'+tDec+',2))';
-            const scl='IF('+dSum+'=0,0,'+maint+'/'+dSum+')';
-            fc(ws,r2,ci++,'INT(ROUND(C'+danggiCalcRow+'*'+scl+',2)*100+0.000000001)/100',calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-          }
+        if(isS){
+          const totDec='ROUND(G'+wP+'-G'+wC+',2)>0';
+          const youDec='ROUND((C'+wP+'+D'+wP+')-(C'+wC+'+D'+wC+'),2)>0';
+          fc(ws,r2,ci++,'IF(OR('+totDec+','+youDec+'),0,C'+danggiCalcRow+')',item.addtl.inc.ym,nf2);
+          fc(ws,r2,ci++,'IF(OR('+totDec+','+youDec+'),0,D'+danggiCalcRow+')',item.addtl.inc.yl,nf2);
+          fc(ws,r2,ci++,'IF('+totDec+',0,E'+danggiCalcRow+')',item.addtl.inc.nm,nf2);
+          fc(ws,r2,ci++,'IF('+totDec+',0,F'+danggiCalcRow+')',item.addtl.inc.nl,nf2);
+        } else if(hasN){
+          const totDec='ROUND(E'+wP+'-E'+wC+',2)>0';
+          const youDec='ROUND(C'+wP+'-C'+wC+',2)>0';
+          fc(ws,r2,ci++,'IF(OR('+totDec+','+youDec+'),0,C'+danggiCalcRow+')',calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
+          fc(ws,r2,ci++,'IF('+totDec+',0,D'+danggiCalcRow+')',calc_rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
         } else {
-          if(isS){
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.ym,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.yl,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,E'+danggiCalcRow+'-MAX(0,E'+wP+'-E'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.nm,nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,F'+danggiCalcRow+'-MAX(0,F'+wP+'-F'+wC+')),2)*100+0.000000001)/100',item.addtl.inc.nl,nf2);
-          } else if(hasN){
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,D'+danggiCalcRow+'-MAX(0,D'+wP+'-D'+wC+')),2)*100+0.000000001)/100',calc_rp2(item.addtl.inc.nm+item.addtl.inc.nl),nf2);
-          } else {
-            fc(ws,r2,ci++,'INT(ROUND(MAX(0,C'+danggiCalcRow+'-MAX(0,C'+wP+'-C'+wC+')),2)*100+0.000000001)/100',calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
-          }
+          const totDec='ROUND(D'+wP+'-D'+wC+',2)>0';
+          const youDec='ROUND(C'+wP+'-C'+wC+',2)>0';
+          fc(ws,r2,ci++,'IF(OR('+totDec+','+youDec+'),0,C'+danggiCalcRow+')',calc_rp2(item.addtl.inc.ym+item.addtl.inc.yl),nf2);
         }
       }
 
